@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package io.rsocket.rpc.metrics.om;
+
+option java_package = "io.rsocket.rpc.metrics.om";
+option java_outer_classname = "Metrics";
+option java_multiple_files = true;
+
+enum MeterType {
+    COUNTER              = 0;
+    GAUGE                = 1;
+    LONG_TASK_TIMER      = 2;
+    TIMER                = 3;
+    DISTRIBUTION_SUMMARY = 4;
+    OTHER                = 5;
+}
+
+message MeterTag {
+    string key   = 1;
+    string value = 2;
+}
+
+message MeterId {
+    string name           = 1;
+    repeated MeterTag tag = 2;
+    MeterType type        = 3;
+    string description    = 4;
+    string baseUnit       = 5;
+}
+
+enum MeterStatistic {
+    TOTAL        = 0;
+    TOTAL_TIME   = 1;
+    COUNT        = 2;
+    MAX          = 3;
+    VALUE        = 4;
+    UNKNOWN      = 5;
+    ACTIVE_TASKS = 6;
+    DURATION     = 7;
+}
+
+message MeterMeasurement {
+    double value             = 1;
+    MeterStatistic statistic = 2;
+}
+
+message Meter {
+    MeterId id                        = 1;
+    repeated MeterMeasurement measure = 2;
+}
+
+message MetricsSnapshot {
+    map<string, string> tags          = 1;
+    repeated Meter meters = 2;
+}
+
+message Skew {
+    int64 timestamp = 1;
+}
+
+service MetricsSnapshotHandler {
+    // Returns a Hello World Message
+    rpc StreamMetrics (stream MetricsSnapshot) returns (stream Skew) {}
+}

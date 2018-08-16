@@ -1,0 +1,5 @@
+rootProject.name = 'rsocket-rpc-java'
+include 'core'
+include 'core-idl'
+include 'frames'
+include 'metrics-idl'

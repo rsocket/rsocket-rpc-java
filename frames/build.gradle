@@ -1,0 +1,3 @@
+dependencies {
+    compile 'io.rsocket:rsocket-core:0.11.5'
+}

@@ -1,0 +1,136 @@
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'com.github.sherter.google-java-format'
+apply plugin: 'maven'
+apply plugin: 'maven-publish'
+
+task ciVersion {
+    description = "Creates a continuous-delivery friendly version number for the service"
+
+    def releaseType = project.hasProperty('releaseType') ? project.property('releaseType') : System.getenv('RELEASE_TYPE')
+    def commitHash = project.hasProperty('commitHash') ? project.property('commitHash') : System.getenv('COMMIT_HASH')
+
+    if (releaseType == 'release' || releaseType == 'r') {
+        project.version = project.version
+    } else if (releaseType == 'releaseCandidate' || releaseType == 'rc') {
+        project.version = "${project.version}-RC".toString()
+    } else if (releaseType == 'snapshot' || releaseType == 's') {
+        if (commitHash) {
+            project.version = "${project.version}-SNAPSHOT-${commitHash}".toString()
+        } else {
+            project.version = "${project.version}-SNAPSHOT".toString()
+        }
+    } else {
+        logger.info("Property 'releaseType' was not specified. Defaulting to 'snapshot'")
+        if (commitHash) {
+            project.version = "${project.version}-SNAPSHOT-${commitHash}".toString()
+        } else {
+            project.version = "${project.version}-SNAPSHOT".toString()
+        }
+    }
+
+    println "Setting CI Version for '${project.name}': ${version}"
+}
+build.dependsOn ciVersion
+
+repositories {
+    jcenter()
+    mavenLocal()
+}
+
+compileJava {
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+}
+
+googleJavaFormat {
+    toolVersion = '1.6'
+    exclude '**/generated'
+}
+
+// custom tasks for creating source/javadoc jars
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+    baseName = "${project.ext.artifactName}"
+    version = "${project.version}"
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+    baseName = "${project.ext.artifactName}"
+    version = "${project.version}"
+}
+
+// add javadoc/source jar tasks as artifacts
+artifacts {
+    archives sourcesJar, javadocJar
+}
+
+jar {
+    baseName = "${artifactName}"
+    version = "${project.version}"
+}
+
+dependencies {
+    compileOnly 'javax.inject:javax.inject:1'
+
+    testCompile 'junit:junit:4.12'
+
+    testCompile 'javax.inject:javax.inject:1'
+    testCompile 'io.projectreactor:reactor-test:3.1.7.RELEASE'
+    testCompile 'com.google.protobuf:protobuf-java:3.6.0'
+    testCompile 'org.hdrhistogram:HdrHistogram:2.1.10'
+    testCompile 'org.apache.logging.log4j:log4j-api:2.8.2'
+    testCompile 'org.apache.logging.log4j:log4j-core:2.8.2'
+    testCompile 'org.apache.logging.log4j:log4j-slf4j-impl:2.8.2'
+    testCompile 'io.rsocket:rsocket-transport-netty:0.11.5'
+    testCompile 'io.rsocket:rsocket-transport-local:0.11.5'
+    testCompile 'org.mockito:mockito-all:1.10.19'
+}
+
+test {
+    testLogging {
+        exceptionFormat = 'full'
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+        }
+    }
+}
+
+bintray {
+    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
+    key = project.hasProperty('bintrayKey') ? project.property('bintrayKey') : System.getenv('BINTRAY_KEY')
+
+    publications = ['mavenJava']
+
+    //dryRun = true
+    publish = (osdetector.os == 'osx')
+    override = true
+
+    pkg {
+        repo = 'netifi-oss'
+        name = "${artifactName}".toString()
+        userOrg = 'netifi'
+        desc = "${project.description}"
+        websiteUrl = 'https://github.com/netifi/rsocket-rpc'
+        issueTrackerUrl = 'https://github.com/netifi/rsocket-rpc/issues'
+        vcsUrl = 'https://github.com/netifi/rsocket-rpc.git'
+        licenses = ['Apache-2.0']
+        githubRepo = 'netifi/rsocket-rpc'
+        githubReleaseNotesFile = 'CHANGELOG.md'
+
+        version {
+            name = "$project.version".toString()
+        }
+    }
+}

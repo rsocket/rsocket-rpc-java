@@ -1,0 +1,49 @@
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.5'
+    }
+}
+
+plugins {
+    id 'com.gradle.build-scan' version '1.15.1' // declare before any other plugin
+    id 'com.google.osdetector' version '1.4.0'
+    id 'com.github.sherter.google-java-format' version '0.6' apply false
+    id 'com.github.johnrengelman.shadow' version '2.0.1' apply false
+    id 'me.champeau.gradle.jmh' version '0.4.4' apply false
+    id 'io.morethan.jmhreport' version '0.6.2.1' apply false
+}
+
+buildScan { licenseAgreementUrl = 'https://gradle.com/terms-of-service'; licenseAgree = 'yes' }
+
+project(':core') {
+    description = 'RSocket RPC Library'
+    ext.artifactName = 'core'
+
+    apply from: file('../gradle/java.gradle')
+}
+
+project(':core-idl') {
+    description = 'RSocket RPC IDL'
+    ext.artifactName = 'core-idl'
+
+    apply from: file('../gradle/java.gradle')
+}
+
+project(':frames') {
+    description = 'RSocket RPC Frames'
+    ext.artifactName = 'frames'
+
+    apply from: file('../gradle/java.gradle')
+}
+
+project(':metrics-idl') {
+    description = 'RSocket RPC Metrics IDL'
+    ext.artifactName = 'metrics-idl'
+
+    apply from: file('../gradle/java.gradle')
+}
