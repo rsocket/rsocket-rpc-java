@@ -1,4 +1,5 @@
 # RSocket RPC - Java
+[![Build Status](https://travis-ci.org/netifi/rsocket-rpc-java.svg?branch=master)](https://travis-ci.org/netifi/rsocket-rpc-java)
 
 The standard [RSocket](http://rsocket.io) RPC Java implementation.
 
