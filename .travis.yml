@@ -9,19 +9,7 @@ matrix:
     - tar -xzvf protobuf-cpp-3.6.0.tar.gz
     - pushd protobuf-3.6.0 && ./configure --disable-shared && make && sudo make install
       && popd
-    script: ./buildtravis.sh
-#  - os: osx
-#    osx_image: xcode9.4
-#    language: generic
-#    env:
-#    - HOMEBREW_TEMP="/tmp"
-#    - LDFLAGS="/usr/local/lib/libprotobuf.a /usr/local/lib/libprotoc.a"
-#    before_install:
-#    - brew update
-#    - EDITOR="sed -i '' 's/system \".\/configure\",/system \".\/configure\", \"--disable-shared\",/g'"
-#      brew edit protobuf
-#    - brew install protobuf
-#    script: ./buildtravis.sh
+    script: "./buildtravis.sh"
 before_cache:
 - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
 notifications:
@@ -31,3 +19,7 @@ cache:
   - "$HOME/.gradle/caches/"
   - "$HOME/.gradle/wrapper/"
   - "$HOME/.m2"
+env:
+  global:
+  - secure: Qw8hKZPSzbEpwEZ9yNROtL3f3ZzuTDBP+jyHnsKKMyrEfzXYWak8i3VJ6NGzuhWWLe4Pf8lJOWq6y5baxJxanfM45e9J/eqXnDi1ZkNToB/6/bUcnaNoLvqMZlLZMF3pmF/9vyuRFo9WBqHoSU3sUcBtQF9H1LuUOnJyLDoSvo61UtvUtNmochGmrhRdWSGAiKdGqRvy1Uy4cuxtjE1e52N/N5K9bhziXD2OLt/+8tDC0kHic6g4XHVTKVz3zTW27H4xZyXGmMGe2kH1qxUZ5M/Qbp+aB25RhL3Zh3cETfZ13ImL6hebzvNYSNILSxsnh8+H5hQ4K1xpNmHokv0+QUvLIXpFXihDWarQlmoO2537sTXZ3ylx188Xj9h0v+Eg9QzpBhqTx6xOdraf/AlhP5tX5RL0faQYQTZWUJqs2fUWXiS82Rkd9YTuf1MMSf2GHYNpWy9o3pBEa1hrWqpizDHhJ3cueO8lpDmPLHQWUlXnHjD9MCWLSmA7h8C15viWYHDwXkeqtX63cx18ylsDwBY/X2GlzVE28MStuvvSp9n/5sVfhDeMweinYl2QpuRLY7YXlrxrU0k0uKIZbG87y+GrePvsEyl3H9x+z8+ef2KBI+bSTtjtDjFQ6DuK7brY6HMD1aTPtBwdLaDpjMKenm4DcJs0uBTXT2Hs8oq2Mzs=
+  - secure: VNi0+5sen5Dw3xSpwVhQGPTnhe92Ena0Wzm1KbBXFAxRX11law+8/m//0oA2gly2XhCOQ+rEr/wuQ54IE/BGFKIUL886WYmRwhGiKuHJIy+VRWuujvXsJsaeh2vUgRMrekqcW8xbC14EU5NQ/I3FbMREoiQR+IFChbcGtUwLb4vEMSEZq3suxun+CN7zHB/8knzIzojtkC43O1EclSvQLkANNNm8OvzOA9QTBMT30vlLizsGcp8YDCJg8ocQYUWphjhh1YOk/rKZI3muDBBC+hBk3ZYY56EDgDLm9Rs8BC3tHk61DcVi7rtrxpg1sCatbXmixuO9S0vFxii5IglldKh4Q+ZBfLOBoRU9F4Cb+BzjztK0uqBCMKgMMYieykgLxkUU7WogmswvbLM1D5cET1cXK3WJRMPGeOxjqfDUq1Fw6L1X9TyMQQXr4ARFgDA0r6/yyqEW21mtELvnE2rWAbi3HfJZx+Gc0KNNf5GUEIDWgBSWdEZrjSwIewXctLRAeY0UJNwMTOMW3NMNPCQ/MEDPM+25zUfj/HTRZo0YpfVvTFqPEWD7o1zNqGottt1ltKLA3TH5AZgqu0UXJEdEtlZhobC7ElshR7Hq5DHxqz2qg8YJDq+z6n9c4xzjwmNdqnwPWzSxlouAMX2I051BS9aTpO0BmgKtoLBSmotKCRg=
