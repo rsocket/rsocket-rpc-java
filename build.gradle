@@ -47,3 +47,9 @@ project(':metrics-idl') {
 
     apply from: file('../gradle/java.gradle')
 }
+
+project(':protobuf-rpc') {
+    description = 'RSocket RPC Protobuf Generator'
+    ext.artifactName = 'protobuf-rpc'
+
+}
