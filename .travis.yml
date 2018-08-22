@@ -10,6 +10,18 @@ matrix:
     - pushd protobuf-3.6.0 && ./configure --disable-shared && make && sudo make install
       && popd
     script: "./buildtravis.sh"
+  - os: osx
+    osx_image: xcode9.4
+    language: generic
+    env:
+    - HOMEBREW_TEMP="/tmp"
+    - LDFLAGS="/usr/local/lib/libprotobuf.a /usr/local/lib/libprotoc.a"
+    before_install:
+    - brew update
+    - EDITOR="sed -i '' 's/system \".\/configure\",/system \".\/configure\", \"--disable-shared\",/g'"
+      brew edit protobuf
+    - brew install protobuf
+    script: "./buildtravis.sh"
 before_cache:
 - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
 notifications:
