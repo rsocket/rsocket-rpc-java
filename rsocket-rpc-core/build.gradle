@@ -1,0 +1,51 @@
+plugins {
+    id 'com.google.protobuf' version '0.8.5'
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    compile project (':rsocket-rpc-protobuf')
+    compile 'io.opentracing:opentracing-api:0.31.0'
+    compile 'javax.inject:javax.inject:1'
+    compile 'com.google.protobuf:protobuf-java:3.6.0'
+    compile 'io.rsocket:rsocket-core:0.11.5'
+    compile 'io.rsocket:rsocket-transport-netty:0.11.5'
+    compile 'io.micrometer:micrometer-core:1.0.3'
+
+    protobuf project(':rsocket-rpc-metrics-idl')
+
+    testCompile 'io.opentracing.brave:brave-opentracing:0.31.2'
+    testCompile 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.7.6'
+}
+
+
+def protocPluginBaseName = "rsocket-rpc-java-${osdetector.os}-${osdetector.arch}"
+def javaPluginPath = "$rootDir/rsocket-rpc-protobuf/build/exe/java_plugin/$protocPluginBaseName"
+
+protobuf {
+    generatedFilesBaseDir = "${projectDir}/src/generated"
+
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.6.0'
+    }
+    plugins {
+        rsocketRpc {
+            path = javaPluginPath
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.dependsOn ':rsocket-rpc-protobuf:java_pluginExecutable'
+            // Recompile protos when the codegen has been changed
+            task.inputs.file javaPluginPath
+            // Recompile protos when build.gradle has been changed, because
+            // it's possible the version of protoc has been changed.
+            task.inputs.file "${rootProject.projectDir}/build.gradle"
+            task.plugins {
+                rsocketRpc {}
+            }
+        }
+    }
+}

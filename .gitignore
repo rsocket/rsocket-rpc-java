@@ -1,8 +1,3 @@
-#JS ignores
-node_modules/
-dist/
-prebuilds/
-
 # Created by https://www.gitignore.io/api/node,java,macos,linux,cmake,gradle,intellij+all
 
 ### CMake ###
@@ -249,5 +244,7 @@ gradle-app.setting
 # # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
 # gradle/wrapper/gradle-wrapper.properties
 
+# Protobuf
+generated/
 
 # End of https://www.gitignore.io/api/node,java,macos,linux,cmake,gradle,intellij+all
