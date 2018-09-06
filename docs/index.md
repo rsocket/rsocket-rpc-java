@@ -26,13 +26,13 @@ rpc RequestReply (SimpleRequest) returns (SimpleResponse) {}
 ```
 
 ### Fire-and-Forget
-Fire and forget sends a request without a response. This is not just ignoring the response; the underlying protocol does not send anything back to the caller. To make a request fire-and-forget with RSocket RPC you need to return google.Protobuf.Empty in your IDL. This will generate fire and forget code.
+Fire and forget sends a request without a response. This is not just ignoring the response; the underlying protocol does not send anything back to the caller. To make a request fire-and-forget with RSocket RPC you need to return google.protobuf.Empty in your IDL. This will generate fire and forget code.
 
 #### Protobuf
 ```
-import "google/Protobuf/empty.proto";
+import "google/protobuf/empty.proto";
 ...
-rpc FireAndForget (SimpleRequest) returns (google.Protobuf.Empty) {}
+rpc FireAndForget (SimpleRequest) returns (google.protobuf.Empty) {}
 ```
 
 ### Single Request / Stream Response
@@ -82,18 +82,18 @@ $ sudo apt-get install libProtobuf-java Protobuf-compiler
 RSocket RPC Java uses a Protobuf plugin to generate application code. Add the following code to your project's Gradle file so that it will generate code from your Protobuf IDL when your application is compiled.
 
 ```
-Protobuf {
+protobuf {
     protoc {
-        artifact = 'com.google.Protobuf:protoc:3.6.0'
+        artifact = 'com.google.protobuf:protoc:3.6.0'
     }
     plugins {
-        RSocket RPC {
-            artifact = 'io.netifi.RSocket RPC:RSocket RPC-java:0.7.x'
+        rsocketRpc {
+            artifact = 'io.rsocket.rpc:rsocket-rpc-protobuf:0.2.0'
         }
     }
     generateProtoTasks {
         all()*.plugins {
-            RSocket RPC {}
+            rsocketRpc {}
         }
     }
 }
@@ -102,9 +102,9 @@ Protobuf {
 idea {
     module {
         sourceDirs += file("${projectDir}/build/generated/source/proto/main/java");
-        sourceDirs += file("${projectDir}/build/generated/source/proto/main/RSocket RPC");
+        sourceDirs += file("${projectDir}/build/generated/source/proto/main/rsocketRpc");
         sourceDirs += file("${projectDir}/build/generated/source/proto/test/java");
-        sourceDirs += file("${projectDir}/build/generated/source/proto/test/RSocket RPC");
+        sourceDirs += file("${projectDir}/build/generated/source/proto/test/rsocketRpc");
     }
 }
 ```
@@ -114,11 +114,11 @@ After you have installed Protobuf and configured Gradle you need to create a Pro
 ```
 syntax = "proto3";
 
-package io.netifi.testing;
+package io.rsocket.rpc.testing;
 
-import "google/Protobuf/empty.proto";
+import "google/protobuf/empty.proto";
 
-option java_package = "io.netifi.testing.Protobuf";
+option java_package = "io.rsocket.rpc.testing.protobuf";
 option java_outer_classname = "SimpleServiceProto";
 option java_multiple_files = true;
 
@@ -127,7 +127,7 @@ service SimpleService {
   rpc RequestReply (SimpleRequest) returns (SimpleResponse) {}
 
   // Fire-and-Forget
-  rpc FireAndForget (SimpleRequest) returns (google.Protobuf.Empty) {}
+  rpc FireAndForget (SimpleRequest) returns (google.protobuf.Empty) {}
 
   // Single Request / Streaming Response
   rpc RequestStream (SimpleRequest) returns (stream SimpleResponse) {}
@@ -323,17 +323,13 @@ System.out.println(response.getResponseMessage());
 
 The above example streams in 11 items to a server. The server receives the stream, counts the most common words, and then returns a message detailing the data received. 
 
-## Working example
-To see a working example of the code described here please view the [SimpleServiceTest](https://github.com/netifi/RSocket RPC-java/blob/master/testing-proto/src/test/java/io/netifi/testing/protobuf/SimpleServiceTest.java) class.
-
-
 ## Release Notes
 
-Please find release notes at [https://github.com/netifi/RSocket RPC-java/releases](https://github.com/netifi/RSocket RPC-java/releases).
+Please find release notes at [https://github.com/netifi/rsocket-rpc-java/releases](https://github.com/netifi/rsocket-rpc-java/releases).
 
 ## Bugs and Feedback
 
-For bugs, questions, and discussions please use the [Github Issues](https://github.com/netifi/RSocket RPC-java/issues).
+For bugs, questions, and discussions please use the [Github Issues](https://github.com/netifi/rsocket-rpc-java/issues).
 
 ## License
 Copyright 2017 Netifi Inc.
