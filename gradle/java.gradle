@@ -80,14 +80,14 @@ dependencies {
     testCompile 'junit:junit:4.12'
 
     testCompile 'javax.inject:javax.inject:1'
-    testCompile 'io.projectreactor:reactor-test:3.1.9.RELEASE'
+    testCompile 'io.projectreactor:reactor-test:3.1.7.RELEASE'
     testCompile 'com.google.protobuf:protobuf-java:3.6.0'
     testCompile 'org.hdrhistogram:HdrHistogram:2.1.10'
     testCompile 'org.apache.logging.log4j:log4j-api:2.8.2'
     testCompile 'org.apache.logging.log4j:log4j-core:2.8.2'
     testCompile 'org.apache.logging.log4j:log4j-slf4j-impl:2.8.2'
-    testCompile 'io.rsocket:rsocket-transport-netty:0.11.6'
-    testCompile 'io.rsocket:rsocket-transport-local:0.11.6'
+    testCompile 'io.rsocket:rsocket-transport-netty:0.11.5'
+    testCompile 'io.rsocket:rsocket-transport-local:0.11.5'
     testCompile 'org.mockito:mockito-all:1.10.19'
 }
 
