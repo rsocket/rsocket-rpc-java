@@ -37,13 +37,26 @@ public class Metrics {
         (scannable, subscriber) -> {
           if (scannable instanceof Fuseable) {
             if (subscriber instanceof Fuseable.ConditionalSubscriber) {
-              return new MetricsFuseableConditionalSubscriber<>((Fuseable.ConditionalSubscriber<? super T>) subscriber, next, complete, error, cancelled, timer);
+              return new MetricsFuseableConditionalSubscriber<>(
+                  (Fuseable.ConditionalSubscriber<? super T>) subscriber,
+                  next,
+                  complete,
+                  error,
+                  cancelled,
+                  timer);
             } else {
-              return new MetricsFuseableSubscriber<>(subscriber, next, complete, error, cancelled, timer);
+              return new MetricsFuseableSubscriber<>(
+                  subscriber, next, complete, error, cancelled, timer);
             }
           } else {
             if (subscriber instanceof Fuseable.ConditionalSubscriber) {
-              return new MetricsFuseableConditionalSubscriber<>((Fuseable.ConditionalSubscriber<? super T>) subscriber, next, complete, error, cancelled, timer);
+              return new MetricsFuseableConditionalSubscriber<>(
+                  (Fuseable.ConditionalSubscriber<? super T>) subscriber,
+                  next,
+                  complete,
+                  error,
+                  cancelled,
+                  timer);
             } else {
               return new MetricsSubscriber<>(subscriber, next, complete, error, cancelled, timer);
             }
