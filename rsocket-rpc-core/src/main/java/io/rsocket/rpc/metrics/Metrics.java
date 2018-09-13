@@ -3,6 +3,7 @@ package io.rsocket.rpc.metrics;
 import io.micrometer.core.instrument.*;
 import java.util.function.Function;
 import org.reactivestreams.Publisher;
+import reactor.core.Fuseable;
 import reactor.core.publisher.Operators;
 
 public class Metrics {
@@ -32,7 +33,13 @@ public class Metrics {
             .tags(tags)
             .register(registry);
     return Operators.lift(
-        (scannable, subscriber) ->
-            new MetricsSubscriber<>(subscriber, next, complete, error, cancelled, timer));
+        (scannable, subscriber) -> {
+            if (scannable instanceof Fuseable) {
+              return new MetricsFuseableSubscriber<>(subscriber, next, complete, error, cancelled, timer);
+            }
+            else {
+              return new MetricsSubscriber<>(subscriber, next, complete, error, cancelled, timer);
+            }
+        });
   }
 }
