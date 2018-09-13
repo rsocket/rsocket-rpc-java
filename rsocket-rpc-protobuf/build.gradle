@@ -54,8 +54,8 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
-    compileOnly 'io.projectreactor:reactor-core:3.1.7.RELEASE'
-    compileOnly 'com.google.protobuf:protobuf-java:3.6.0'
+    compileOnly 'io.projectreactor:reactor-core:3.1.9.RELEASE'
+    compileOnly 'com.google.protobuf:protobuf-java:3.6.1'
     compileOnly 'javax.inject:javax.inject:1'
 }
 
@@ -63,7 +63,7 @@ protobuf {
     generatedFilesBaseDir = "${projectDir}/src/generated"
 
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.6.0'
+        artifact = 'com.google.protobuf:protoc:3.6.1'
     }
     plugins {
         rsocketRpc {
