@@ -81,7 +81,7 @@ dependencies {
 
     testCompile 'javax.inject:javax.inject:1'
     testCompile 'io.projectreactor:reactor-test:3.1.9.RELEASE'
-    testCompile 'com.google.protobuf:protobuf-java:3.6.0'
+    testCompile 'com.google.protobuf:protobuf-java:3.6.1'
     testCompile 'org.hdrhistogram:HdrHistogram:2.1.10'
     testCompile 'org.apache.logging.log4j:log4j-api:2.8.2'
     testCompile 'org.apache.logging.log4j:log4j-core:2.8.2'

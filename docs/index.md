@@ -84,7 +84,7 @@ RSocket RPC Java uses a Protobuf plugin to generate application code. Add the fo
 ```
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.6.0'
+        artifact = 'com.google.protobuf:protoc:3.6.1'
     }
     plugins {
         rsocketRpc {

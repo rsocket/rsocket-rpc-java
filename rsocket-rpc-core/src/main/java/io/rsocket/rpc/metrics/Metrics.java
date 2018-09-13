@@ -14,6 +14,7 @@ public class Metrics {
     return timed(registry, name, Tags.of(keyValues));
   }
 
+  @SuppressWarnings("unchecked")
   public static <T> Function<? super Publisher<T>, ? extends Publisher<T>> timed(
       MeterRegistry registry, String name, Iterable<Tag> tags) {
     Counter next =
@@ -34,12 +35,19 @@ public class Metrics {
             .register(registry);
     return Operators.lift(
         (scannable, subscriber) -> {
-            if (scannable instanceof Fuseable) {
+          if (scannable instanceof Fuseable) {
+            if (subscriber instanceof Fuseable.ConditionalSubscriber) {
+              return new MetricsFuseableConditionalSubscriber<>((Fuseable.ConditionalSubscriber<? super T>) subscriber, next, complete, error, cancelled, timer);
+            } else {
               return new MetricsFuseableSubscriber<>(subscriber, next, complete, error, cancelled, timer);
             }
-            else {
+          } else {
+            if (subscriber instanceof Fuseable.ConditionalSubscriber) {
+              return new MetricsFuseableConditionalSubscriber<>((Fuseable.ConditionalSubscriber<? super T>) subscriber, next, complete, error, cancelled, timer);
+            } else {
               return new MetricsSubscriber<>(subscriber, next, complete, error, cancelled, timer);
             }
+          }
         });
   }
 }
