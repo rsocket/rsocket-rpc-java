@@ -10,8 +10,8 @@ dependencies {
     compile 'io.opentracing:opentracing-api:0.31.0'
     compile 'javax.inject:javax.inject:1'
     compile 'com.google.protobuf:protobuf-java:3.6.1'
-    compile 'io.rsocket:rsocket-core:0.11.6'
-    compile 'io.rsocket:rsocket-transport-netty:0.11.6'
+    compile 'io.rsocket:rsocket-core:0.11.7'
+    compile 'io.rsocket:rsocket-transport-netty:0.11.7'
     compile 'io.micrometer:micrometer-core:1.0.6'
 
     protobuf project(':rsocket-rpc-metrics-idl')

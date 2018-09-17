@@ -33,7 +33,7 @@ public class Metadata {
     ByteBufUtil.reserveAndWriteUtf8(byteBuf, method, methodLength);
 
     byteBuf.writeShort(tracing.readableBytes());
-    byteBuf.writeBytes(tracing);
+    byteBuf.writeBytes(tracing, tracing.readerIndex(), tracing.readableBytes());
 
     byteBuf.writeBytes(metadata, metadata.readerIndex(), metadata.readableBytes());
 

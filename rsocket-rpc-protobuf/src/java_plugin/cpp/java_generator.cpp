@@ -741,10 +741,11 @@ static void PrintClient(const ServiceDescriptor* service,
         p->Indent();
         p->Print(
             *vars,
-            "final $ByteBuf$ tracingMetadata = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
-            "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracingMetadata, metadata);\n"
-            "$ByteBuf$ data = serialize(message);\n"
-            "tracingMetadata.release();\n"
+            "final $ByteBuf$ data = serialize(message);\n"
+            "final $ByteBuf$ tracing = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
+            "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracing, metadata);\n"
+            "tracing.release();\n"
+            "metadata.release();\n"
             "return rSocket.requestStream($ByteBufPayload$.create(data, metadataBuf));\n");
         p->Outdent();
         p->Print("}\n");
@@ -765,10 +766,11 @@ static void PrintClient(const ServiceDescriptor* service,
           p->Indent();
           p->Print(
               *vars,
-              "final $ByteBuf$ tracingMetadata = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
-              "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracingMetadata, metadata);\n"
-              "$ByteBuf$ data = serialize(message);\n"
-              "tracingMetadata.release();\n"
+              "final $ByteBuf$ data = serialize(message);\n"
+              "final $ByteBuf$ tracing = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
+              "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracing, metadata);\n"
+              "tracing.release();\n"
+              "metadata.release();\n"
               "return rSocket.fireAndForget($ByteBufPayload$.create(data, metadataBuf));\n");
           p->Outdent();
           p->Print("}\n");
@@ -788,10 +790,11 @@ static void PrintClient(const ServiceDescriptor* service,
           p->Indent();
           p->Print(
               *vars,
-              "final $ByteBuf$ tracingMetadata = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
-              "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracingMetadata, metadata);\n"
-              "$ByteBuf$ data = serialize(message);\n"
-              "tracingMetadata.release();\n"
+              "final $ByteBuf$ data = serialize(message);\n"
+              "final $ByteBuf$ tracing = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
+              "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracing, metadata);\n"
+              "tracing.release();\n"
+              "metadata.release();\n"
               "return rSocket.requestResponse($ByteBufPayload$.create(data, metadataBuf));\n");
           p->Outdent();
           p->Print("}\n");
