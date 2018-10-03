@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
-import io.rsocket.internal.SwitchTransform;
+import io.rsocket.internal.SwitchTransformFlux;
 import io.rsocket.rpc.RSocketRpcService;
 import io.rsocket.rpc.exception.ServiceNotFound;
 import io.rsocket.rpc.frames.Metadata;
@@ -92,7 +92,7 @@ public class RequestHandlingRSocket extends AbstractRSocket {
 
   @Override
   public Flux<Payload> requestChannel(Publisher<Payload> payloads) {
-    return new SwitchTransform<>(
+    return new SwitchTransformFlux<>(
         payloads,
         (payload, flux) -> {
           try {

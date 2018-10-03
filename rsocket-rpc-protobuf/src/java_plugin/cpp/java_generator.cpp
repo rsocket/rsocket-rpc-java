@@ -1394,7 +1394,7 @@ static void PrintServer(const ServiceDescriptor* service,
   } else {
     p->Print(
         *vars,
-        "return new $SwitchTransform$<$Payload$, $Payload$>(payloads, new $BiFunction$<$Payload$, $Flux$<$Payload$>, $Publisher$<? extends $Payload$>>() {\n");
+        "return new $SwitchTransformFlux$<$Payload$, $Payload$>(payloads, new $BiFunction$<$Payload$, $Flux$<$Payload$>, $Publisher$<? extends $Payload$>>() {\n");
     p->Indent();
     p->Print(
         *vars,
@@ -1603,7 +1603,7 @@ void GenerateServer(const ServiceDescriptor* service,
   vars["RSocket"] = "io.rsocket.RSocket";
   vars["Payload"] = "io.rsocket.Payload";
   vars["ByteBufPayload"] = "io.rsocket.util.ByteBufPayload";
-  vars["SwitchTransform"] = "io.rsocket.internal.SwitchTransform";
+  vars["SwitchTransformFlux"] = "io.rsocket.internal.SwitchTransformFlux";
   vars["AbstractRSocketService"] = "io.rsocket.rpc.AbstractRSocketService";
   vars["RSocketRpcMetadata"] = "io.rsocket.rpc.frames.Metadata";
   vars["RSocketRpcMetrics"] = "io.rsocket.rpc.metrics.Metrics";
