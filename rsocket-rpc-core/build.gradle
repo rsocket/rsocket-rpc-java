@@ -1,3 +1,5 @@
+import static org.apache.tools.ant.taskdefs.condition.Os.*;
+
 plugins {
     id 'com.google.protobuf' version '0.8.5'
 }
@@ -9,6 +11,7 @@ dependencies {
     compile project (':rsocket-rpc-protobuf')
     compile 'io.opentracing:opentracing-api:0.31.0'
     compile 'javax.inject:javax.inject:1'
+    compile 'javax.annotation:javax.annotation-api:1.2'
     compile 'com.google.protobuf:protobuf-java:3.6.1'
     compile 'io.rsocket:rsocket-core:0.11.8'
     compile 'io.rsocket:rsocket-transport-netty:0.11.8'
@@ -21,8 +24,11 @@ dependencies {
 }
 
 
-def protocPluginBaseName = "rsocket-rpc-java-${osdetector.os}-${osdetector.arch}"
+def protocPluginBaseName = "rsocket-rpc-protobuf-${osdetector.os}-${osdetector.arch}"
 def javaPluginPath = "$rootDir/rsocket-rpc-protobuf/build/exe/java_plugin/$protocPluginBaseName"
+if(isFamily(FAMILY_WINDOWS)){
+    javaPluginPath = javaPluginPath + ".exe"
+}
 
 protobuf {
     generatedFilesBaseDir = "${projectDir}/src/generated"
