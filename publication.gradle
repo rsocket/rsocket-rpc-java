@@ -1,86 +1,88 @@
-plugins.withType(JavaPlugin) {
-  compileJava {
-	sourceCompatibility = 1.8
+configure(subprojects - project(':rsocket-rpc-protobuf')) {
+  plugins.withType(JavaPlugin) {
+	compileJava {
+	  sourceCompatibility = 1.8
 
-	// TODO: Cleanup warnings so no need to exclude
-	options.compilerArgs << '-Xlint:all,-overloads,-rawtypes,-unchecked'
-  }
+	  // TODO: Cleanup warnings so no need to exclude
+	  options.compilerArgs << '-Xlint:all,-overloads,-rawtypes,-unchecked'
+	}
 
-  javadoc {
-	options.with {
-	  links 'https://docs.oracle.com/javase/8/docs/api/'
-	  links 'https://projectreactor.io/docs/core/release/api/'
-	  links 'https://netty.io/4.1/api/'
+	javadoc {
+	  options.with {
+		links 'https://docs.oracle.com/javase/8/docs/api/'
+		links 'https://projectreactor.io/docs/core/release/api/'
+		links 'https://netty.io/4.1/api/'
+	  }
+	}
+
+	test {
+//            useJUnitPlatform()
+
+	  systemProperty "io.netty.leakDetection.level", "ADVANCED"
 	}
   }
 
-  test {
-//            useJUnitPlatform()
+  plugins.withType(JavaLibraryPlugin) {
+	task sourcesJar(type: Jar) {
+	  classifier 'sources'
+	  from sourceSets.main.allJava
+	}
 
-	systemProperty "io.netty.leakDetection.level", "ADVANCED"
+	task javadocJar(type: Jar, dependsOn: javadoc) {
+	  classifier 'javadoc'
+	  from javadoc.destinationDir
+	}
   }
-}
 
-plugins.withType(JavaLibraryPlugin) {
-  task sourcesJar(type: Jar) {
-	classifier 'sources'
-	from sourceSets.main.allJava
-  }
+  plugins.withType(MavenPublishPlugin) {
+	publishing {
+	  publications {
+		maven(MavenPublication) {
+		  groupId project.group
 
-  task javadocJar(type: Jar, dependsOn: javadoc) {
-	classifier 'javadoc'
-	from javadoc.destinationDir
-  }
-}
+		  from components.java
 
-plugins.withType(MavenPublishPlugin) {
-  publishing {
-	publications {
-	  maven(MavenPublication) {
-		groupId project.group
+		  artifact sourcesJar
+		  artifact javadocJar
 
-		from components.java
+		  pom.withXml {
+			asNode().':version' + {
+			  resolveStrategy = DELEGATE_FIRST
 
-		artifact sourcesJar
-		artifact javadocJar
+			  name project.name
+			  description project.description
+			  url 'http://rsocket.io'
 
-		pom.withXml {
-		  asNode().':version' + {
-			resolveStrategy = DELEGATE_FIRST
-
-			name project.name
-			description project.description
-			url 'http://rsocket.io'
-
-			licenses {
-			  license {
-				name 'The Apache Software License, Version 2.0'
-				url 'http://www.apache.org/license/LICENSE-2.0.txt'
+			  licenses {
+				license {
+				  name 'The Apache Software License, Version 2.0'
+				  url 'http://www.apache.org/license/LICENSE-2.0.txt'
+				}
 			  }
-			}
 
-			developers {
-			  developer {
-				id 'robertroeser'
-				name 'Robert Roeser'
-				email 'robert@netifi.com'
+			  developers {
+				developer {
+				  id 'robertroeser'
+				  name 'Robert Roeser'
+				  email 'robert@netifi.com'
+				}
+				developer {
+				  id 'rdegnan'
+				  name 'Ryland Degnan'
+				  email 'ryland@netifi.com'
+				}
+				developer {
+				  id 'OlegDokuka'
+				  name 'Oleh Dokuka'
+				  email 'oleh@netifi.com'
+				}
 			  }
-			  developer {
-				id 'rdegnan'
-				name 'Ryland Degnan'
-				email 'ryland@netifi.com'
-			  }
-			  developer {
-				id 'OlegDokuka'
-				name 'Oleh Dokuka'
-				email 'oleh@netifi.com'
-			  }
-			}
 
-			scm {
-			  connection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
-			  developerConnection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
-			  url 'https://github.com/rsocket/rsocket-rpc-java'
+			  scm {
+				connection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
+				developerConnection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
+				url 'https://github.com/rsocket/rsocket-rpc-java'
+			  }
 			}
 		  }
 		}
