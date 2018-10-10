@@ -1,31 +1,39 @@
-import static org.apache.tools.ant.taskdefs.condition.Os.*;
+import static org.apache.tools.ant.taskdefs.condition.Os.*
 
-plugins {
-    id 'com.google.protobuf' version '0.8.5'
-}
-
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+description = 'RSocket RPC Library'
 
 dependencies {
-    compile project (':rsocket-rpc-protobuf')
-    compile 'io.opentracing:opentracing-api:0.31.0'
-    compile 'javax.inject:javax.inject:1'
-    compile 'javax.annotation:javax.annotation-api:1.2'
-    compile 'com.google.protobuf:protobuf-java:3.6.1'
-    compile 'io.rsocket:rsocket-core:0.11.8'
-    compile 'io.rsocket:rsocket-transport-netty:0.11.8'
-    compile 'io.micrometer:micrometer-core:1.0.6'
+    implementation project (':rsocket-rpc-protobuf')
+    implementation 'io.opentracing:opentracing-api'
+    implementation 'javax.inject:javax.inject'
+    implementation 'javax.annotation:javax.annotation-api'
+    implementation 'com.google.protobuf:protobuf-java'
+    implementation 'io.rsocket:rsocket-core'
+    implementation 'io.rsocket:rsocket-transport-netty'
+    implementation 'io.micrometer:micrometer-core'
 
     protobuf project(':rsocket-rpc-metrics-idl')
 
-    testCompile 'io.opentracing.brave:brave-opentracing:0.31.2'
-    testCompile 'io.zipkin.reporter2:zipkin-sender-okhttp3:2.7.6'
+    testImplementation 'io.opentracing.brave:brave-opentracing'
+    testImplementation 'junit:junit'
+
+    testImplementation 'javax.inject:javax.inject'
+    testImplementation 'io.projectreactor:reactor-test'
+    testImplementation 'com.google.protobuf:protobuf-java'
+    testImplementation 'org.hdrhistogram:HdrHistogram'
+    testImplementation 'org.apache.logging.log4j:log4j-api'
+    testImplementation 'org.apache.logging.log4j:log4j-core'
+    testImplementation 'org.apache.logging.log4j:log4j-slf4j-impl'
+    testImplementation 'io.rsocket:rsocket-transport-netty'
+    testImplementation 'io.rsocket:rsocket-transport-local'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'io.zipkin.reporter2:zipkin-sender-okhttp3'
 }
 
 
 def protocPluginBaseName = "rsocket-rpc-protobuf-${osdetector.os}-${osdetector.arch}"
 def javaPluginPath = "$rootDir/rsocket-rpc-protobuf/build/exe/java_plugin/$protocPluginBaseName"
+
 if(isFamily(FAMILY_WINDOWS)){
     javaPluginPath = javaPluginPath + ".exe"
 }
@@ -34,7 +42,7 @@ protobuf {
     generatedFilesBaseDir = "${projectDir}/src/generated"
 
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.6.1'
+        artifact = "com.google.protobuf:protoc:${ext['protobuf.version']}"
     }
     plugins {
         rsocketRpc {
@@ -44,9 +52,9 @@ protobuf {
     generateProtoTasks {
         all().each { task ->
             task.dependsOn ':rsocket-rpc-protobuf:java_pluginExecutable'
-            // Recompile protos when the codegen has been changed
+            // Reimplementation protos when the codegen has been changed
             task.inputs.file javaPluginPath
-            // Recompile protos when build.gradle has been changed, because
+            // Reimplementation protos when build.gradle has been changed, because
             // it's possible the version of protoc has been changed.
             task.inputs.file "${rootProject.projectDir}/build.gradle"
             task.plugins {
