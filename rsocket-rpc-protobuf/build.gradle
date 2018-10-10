@@ -38,7 +38,7 @@ task ciVersion {
 }
 build.dependsOn ciVersion
 
-def pluginPrefix = "rsocket-rpc-java-${osdetector.os}-${osdetector.arch}"
+def pluginPrefix = "rsocket-rpc-protobuf-${osdetector.os}-${osdetector.arch}"
 def pluginName = "${pluginPrefix}.exe"
 def artifactStagingPath = "$buildDir/artifacts" as File
 def pathToPlugin = "${artifactStagingPath.getPath()}/${pluginName}"
@@ -111,6 +111,7 @@ model {
         // If you have both VC and Gcc installed, VC will be selected, unless you
         // set 'vcDisable=true'
         if (!vcDisable) {
+            println 'using visualCpp'
             visualCpp(VisualCpp) {
             }
         }
@@ -172,11 +173,17 @@ model {
                 cppCompiler.args "/EHsc", "/MT"
                 if (rootProject.hasProperty('vcProtobufInclude')) {
                     cppCompiler.args "/I${rootProject.vcProtobufInclude}"
+                } else {
+                    println 'You may need to add a propertry, vcProtobufInclude, pointing to protobuf include'
                 }
-                linker.args "libprotobuf.lib", "libprotoc.lib"
+
                 if (rootProject.hasProperty('vcProtobufLibs')) {
                     linker.args "/LIBPATH:${rootProject.vcProtobufLibs}"
+                } else {
+                    println 'You may need to add a propertry, vcProtobufLibs, pointing to protobuf lib'
                 }
+
+                linker.args "libprotobuf.lib", "libprotoc.lib"
             }
         }
     }
