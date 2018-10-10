@@ -1,15 +1,12 @@
-plugins {
-    id 'com.google.protobuf' version '0.8.5'
-    id 'java'
+dependencies {
+    protobuf 'com.google.protobuf:protobuf-java'
 }
 
-dependencies {
-    protobuf 'com.google.protobuf:protobuf-java:3.6.1'
-}
+description = 'RSocket RPC Protobf IDL'
 
 protobuf {
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.6.1'
+        artifact = "com.google.protobuf:protoc:${ext['protobuf.version']}"
     }
     generateProtoTasks {
         all().each { task ->

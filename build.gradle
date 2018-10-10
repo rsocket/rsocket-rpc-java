@@ -1,45 +1,131 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
-    }
-}
-
 plugins {
-    id 'com.gradle.build-scan' version '1.15.1' // declare before any other plugin
+    id 'java-library'
+    id 'com.google.protobuf' version '0.8.5' apply false
+    id 'com.gradle.build-scan' version '1.15.1'
     id 'com.google.osdetector' version '1.4.0'
     id 'com.github.sherter.google-java-format' version '0.7.1' apply false
     id 'com.github.johnrengelman.shadow' version '2.0.1' apply false
-    id 'me.champeau.gradle.jmh' version '0.4.4' apply false
-    id 'io.morethan.jmhreport' version '0.6.2.1' apply false
+    id 'com.jfrog.artifactory' version '4.7.0'
+    id 'com.jfrog.bintray' version '1.8.4'
+    id 'io.spring.dependency-management' version '1.0.6.RELEASE' apply false
+    id 'me.champeau.gradle.jmh' version '0.4.5' apply false
+    id 'io.morethan.jmhreport' version '0.7.0' apply false
 }
+
+apply from: 'artifactory.gradle'
+apply from: 'bintray.gradle'
 
 buildScan { licenseAgreementUrl = 'https://gradle.com/terms-of-service'; licenseAgree = 'yes' }
 
-project(':rsocket-rpc-core') {
-    description = 'RSocket RPC Library'
-    ext.artifactName = 'rsocket-rpc-core'
+subprojects {
 
-    apply from: file('../gradle/java.gradle')
+    apply plugin: 'idea'
+    apply plugin: 'java'
+    apply plugin: 'java-library'
+
+    apply plugin: 'com.google.protobuf'
+    apply plugin: 'io.spring.dependency-management'
+
+    apply plugin: 'com.github.sherter.google-java-format'
+
+    apply plugin: 'maven'
+    apply plugin: 'maven-publish'
+
+    apply plugin: 'com.jfrog.bintray'
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+
+    ext['reactor-bom.version'] = 'Californium-BUILD-SNAPSHOT'
+    ext['rsocket.version'] = '0.11.9.BUILD-SNAPSHOT'
+
+    ext['protobuf.version'] = '3.6.1'
+    ext['log4j.version'] = '2.9.0'
+    ext['junit.version'] = '5.1.0'
+    ext['mockito.version'] = '2.23.0'
+    ext['hamcrest.version'] = '1.3'
+    ext['jmh.version'] = '1.2.0'
+    ext['micrometer.version'] = '1.0.6'
+    ext['assertj.version'] = '3.11.1'
+    ext['opentracing.version'] = '0.31.0'
+    ext['opentracing.brave.version'] = '0.31.2'
+    ext['zipkin.sender.version'] = '2.7.6'
+    ext['hdrhistogram.version'] = '2.1.10'
+
+    repositories {
+        jcenter()
+        mavenLocal()
+        if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
+            maven { url 'http://repo.spring.io/libs-snapshot' }
+            maven { url 'https://oss.jfrog.org/oss-snapshot-local' }
+        }
+    }
+
+    googleJavaFormat {
+        toolVersion = '1.6'
+        exclude '**/generated'
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom "io.projectreactor:reactor-bom:${ext['reactor-bom.version']}"
+        }
+
+        dependencies {
+
+            dependency "com.google.protobuf:protobuf-java:${ext['protobuf.version']}"
+
+            dependency "javax.inject:javax.inject:1"
+		  	dependency "javax.annotation:javax.annotation-api:1.2"
+
+            dependencySet(group: 'org.apache.logging.log4j', version: ext['log4j.version']) {
+                entry "log4j-api"
+                entry "log4j-core"
+                entry "log4j-slf4j-impl"
+            }
+
+            dependencySet(group: 'io.rsocket', version: ext['rsocket.version']) {
+                entry 'rsocket-core'
+                entry 'rsocket-transport-netty'
+                entry 'rsocket-transport-local'
+            }
+
+            dependency "io.micrometer:micrometer-core:${ext['micrometer.version']}"
+            dependency "io.opentracing:opentracing-api:${ext['opentracing.version']}"
+            dependency "io.opentracing.brave:brave-opentracing:${ext['opentracing.brave.version']}"
+            dependency "io.zipkin.reporter2:zipkin-sender-okhttp3:${ext['zipkin.sender.version']}"
+
+            // TODO: Remove after JUnit5 migration
+            // TEST DEPENDENCIES
+
+            dependency 'junit:junit:4.12'
+
+            dependencySet(group: 'org.junit.jupiter', version: ext['junit.version']) {
+                entry 'junit-jupiter-api'
+                entry 'junit-jupiter-engine'
+                entry 'junit-jupiter-params'
+            }
+
+
+            dependency "org.mockito:mockito-core:${ext['mockito.version']}"
+            dependency "org.hamcrest:hamcrest-library:${ext['hamcrest.version']}"
+            dependency "org.assertj:assertj-core:${ext['assertj.version']}"
+            dependency "org.hdrhistogram:HdrHistogram:${ext['hdrhistogram.version']}"
+
+
+            dependencySet(group: 'org.junit.vintage', version: ext['junit.version']) {
+                entry 'junit-vintage-engine'
+            }
+
+            dependencySet(group: 'org.openjdk.jmh', version: ext['jmh.version']) {
+                entry 'jmh-core'
+                entry 'jmh-generator-annprocess'
+            }
+        }
+    }
 }
 
-project(':rsocket-rpc-metrics-idl') {
-    description = 'RSocket RPC Metrics IDL'
-    ext.artifactName = 'rsocket-rpc-metrics-idl'
-
-    apply from: file('../gradle/java.gradle')
-}
-
-project(':rsocket-rpc-protobuf') {
-    description = 'RSocket RPC Protobuf Generator'
-    ext.artifactName = 'rsocket-rpc-protobuf'
-}
-
-project(':rsocket-rpc-protobuf-idl') {
-    description = 'RSocket RPC Protobf IDL'
-    ext.artifactName = 'rsocket-rpc-protobuf-idl'
-
-    apply from: file('../gradle/java.gradle')
+configure(subprojects - project(':rsocket-rpc-protobuf')) {
+    apply from: '../publication.gradle'
 }

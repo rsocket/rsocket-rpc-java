@@ -1,69 +1,28 @@
 plugins {
-    id 'com.google.protobuf' version '0.8.5'
     id 'cpp'
-    id 'java'
-    id 'idea'
 }
 
-apply plugin: 'com.jfrog.bintray'
-apply plugin: 'maven'
-apply plugin: 'maven-publish'
-
-task ciVersion {
-    description = "Creates a continuous-delivery friendly version number for the service"
-
-    def releaseType = project.hasProperty('releaseType') ? project.property('releaseType') : System.getenv('RELEASE_TYPE')
-    def commitHash = project.hasProperty('commitHash') ? project.property('commitHash') : System.getenv('COMMIT_HASH')
-
-    if (releaseType == 'release' || releaseType == 'r') {
-        project.version = project.version
-    } else if (releaseType == 'releaseCandidate' || releaseType == 'rc') {
-        project.version = "${project.version}-RC".toString()
-    } else if (releaseType == 'snapshot' || releaseType == 's') {
-        if (commitHash) {
-            project.version = "${project.version}-SNAPSHOT-${commitHash}".toString()
-        } else {
-            project.version = "${project.version}-SNAPSHOT".toString()
-        }
-    } else {
-        logger.info("Property 'releaseType' was not specified. Defaulting to 'snapshot'")
-        if (commitHash) {
-            project.version = "${project.version}-SNAPSHOT-${commitHash}".toString()
-        } else {
-            project.version = "${project.version}-SNAPSHOT".toString()
-        }
-    }
-
-    println "Setting CI Version for '${project.name}': ${version}"
-}
-build.dependsOn ciVersion
+description = 'RSocket RPC Protobuf Generator'
 
 def pluginPrefix = "rsocket-rpc-protobuf-${osdetector.os}-${osdetector.arch}"
 def pluginName = "${pluginPrefix}.exe"
 def artifactStagingPath = "$buildDir/artifacts" as File
 def pathToPlugin = "${artifactStagingPath.getPath()}/${pluginName}"
 
-repositories {
-    jcenter()
-    maven {
-        url = 'https://dl.bintray.com/netifi/netifi-oss'
-    }
-}
-
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
-    compileOnly 'io.projectreactor:reactor-core:3.2.0.RELEASE'
-    compileOnly 'com.google.protobuf:protobuf-java:3.6.1'
-    compileOnly 'javax.inject:javax.inject:1'
+    compileOnly 'io.projectreactor:reactor-core'
+    compileOnly 'com.google.protobuf:protobuf-java'
+    compileOnly 'javax.inject:javax.inject'
 }
 
 protobuf {
     generatedFilesBaseDir = "${projectDir}/src/generated"
 
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.6.1'
+        artifact = "com.google.protobuf:protoc:${ext['protobuf.version']}"
     }
     plugins {
         rsocketRpc {
@@ -216,77 +175,16 @@ artifacts {
     }
 }
 
-//publishing {
-//    publications {
-//        maven(MavenPublication) {
-//            artifactId "${project.ext.artifactName}"
-//            artifact(pathToPlugin) {
-//                classifier osdetector.os + "-" + osdetector.arch
-//                builtBy buildArtifacts
-//            }
-//        }
-//    }
-//}
-
-
-if ("$version".contains('SNAPSHOT') || "$version".contains('RC')) {
+plugins.withType(MavenPublishPlugin) {
     publishing {
         publications {
             maven(MavenPublication) {
-                artifactId "${project.ext.artifactName}"
+                groupId project.group
+
                 artifact(pathToPlugin) {
                     classifier osdetector.os + "-" + osdetector.arch
                     builtBy buildArtifacts
                 }
-            }
-        }
-        repositories {
-            maven {
-                url = version.contains('SNAPSHOT') ? 'https://artifactory.netifiinc.com/artifactory/libs-snapshot-local' : 'https://artifactory.netifiinc.com/artifactory/libs-release-local'
-                credentials {
-                    username = project.hasProperty('netifiArtifactoryUsername') ? project.property('netifiArtifactoryUsername') : System.getenv('NETIFI_ARTIFACTORY_USERNAME')
-                    password = project.hasProperty('netifiArtifactoryPassword') ? project.property('netifiArtifactoryPassword') : System.getenv('NETIFI_ARTIFACTORY_PASSWORD')
-                }
-            }
-        }
-    }
-} else {
-    publishing {
-        publications {
-            maven(MavenPublication) {
-                artifactId "${project.ext.artifactName}"
-                artifact(pathToPlugin) {
-                    classifier osdetector.os + "-" + osdetector.arch
-                    builtBy buildArtifacts
-                }
-            }
-        }
-    }
-
-    bintray {
-        user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
-        key = project.hasProperty('bintrayKey') ? project.property('bintrayKey') : System.getenv('f')
-
-        publications = ['maven']
-
-        //dryRun = true
-        publish = (osdetector.os == 'osx')
-        override = true
-
-        pkg {
-            repo = 'netifi-oss'
-            name = "${artifactName}".toString()
-            userOrg = 'netifi'
-            desc = "${project.description}"
-            websiteUrl = 'https://github.com/netifi/rsocket-rpc-java'
-            issueTrackerUrl = 'https://github.com/netifi/rsocket-rpc-java/issues'
-            vcsUrl = 'https://github.com/netifi/rsocket-rpc-java.git'
-            licenses = ['Apache-2.0']
-            githubRepo = 'netifi/rsocket-rpc-java'
-            githubReleaseNotesFile = 'CHANGELOG.md'
-
-            version {
-                name = "$project.version".toString()
             }
         }
     }
