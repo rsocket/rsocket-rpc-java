@@ -247,4 +247,9 @@ gradle-app.setting
 # Protobuf
 generated/
 
+#VS Code
+.classpath
+.project
+.settings
+
 # End of https://www.gitignore.io/api/node,java,macos,linux,cmake,gradle,intellij+all
