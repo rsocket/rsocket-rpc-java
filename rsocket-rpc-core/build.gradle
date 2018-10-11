@@ -52,9 +52,9 @@ protobuf {
     generateProtoTasks {
         all().each { task ->
             task.dependsOn ':rsocket-rpc-protobuf:java_pluginExecutable'
-            // Reimplementation protos when the codegen has been changed
+            // Recompile protos when the codegen has been changed
             task.inputs.file javaPluginPath
-            // Reimplementation protos when build.gradle has been changed, because
+            // Recompile protos when build.gradle has been changed, because
             // it's possible the version of protoc has been changed.
             task.inputs.file "${rootProject.projectDir}/build.gradle"
             task.plugins {

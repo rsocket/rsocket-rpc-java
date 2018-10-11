@@ -1,4 +1,4 @@
-configure(subprojects - project(':rsocket-rpc-protobuf')) {
+configure(subprojects.findAll {it.name != 'rsocket-rpc-protobuf'}) {
   plugins.withType(JavaPlugin) {
 	compileJava {
 	  sourceCompatibility = 1.8
@@ -15,11 +15,11 @@ configure(subprojects - project(':rsocket-rpc-protobuf')) {
 	  }
 	}
 
-	test {
-//            useJUnitPlatform()
-
-	  systemProperty "io.netty.leakDetection.level", "ADVANCED"
-	}
+//	test {
+//	  useJUnitPlatform()
+//
+//	  systemProperty "io.netty.leakDetection.level", "ADVANCED"
+//	}
   }
 
   plugins.withType(JavaLibraryPlugin) {
