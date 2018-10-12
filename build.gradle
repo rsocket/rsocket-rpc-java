@@ -39,8 +39,8 @@ subprojects {
     targetCompatibility = 1.8
 
 
-    ext['reactor-bom.version'] = 'Californium-BUILD-SNAPSHOT'
-    ext['rsocket.version'] = '0.11.9.BUILD-SNAPSHOT'
+    ext['reactor-bom.version'] = 'Californium-SR1'
+    ext['rsocket.version'] = '0.11.9'
 
     ext['protobuf.version'] = '3.6.1'
     ext['log4j.version'] = '2.9.0'
