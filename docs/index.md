@@ -88,7 +88,7 @@ protobuf {
     }
     plugins {
         rsocketRpc {
-            artifact = 'io.rsocket.rpc:rsocket-rpc-protobuf:0.2.0'
+            artifact = 'io.rsocket.rpc:rsocket-rpc-protobuf:0.2.5'
         }
     }
     generateProtoTasks {

@@ -1,15 +1,15 @@
 plugins {
     id 'java-library'
     id 'com.google.protobuf' version '0.8.5' apply false
-    id 'com.gradle.build-scan' version '1.15.1'
+    id 'com.gradle.build-scan' version '1.16'
     id 'com.google.osdetector' version '1.4.0'
     id 'com.github.sherter.google-java-format' version '0.7.1' apply false
     id 'com.github.johnrengelman.shadow' version '2.0.1' apply false
     id 'com.jfrog.artifactory' version '4.7.3'
     id 'com.jfrog.bintray' version '1.8.4'
     id 'io.spring.dependency-management' version '1.0.6.RELEASE' apply false
-    id 'me.champeau.gradle.jmh' version '0.4.5' apply false
-    id 'io.morethan.jmhreport' version '0.7.0' apply false
+    id 'me.champeau.gradle.jmh' version '0.4.7' apply false
+    id 'io.morethan.jmhreport' version '0.9.0' apply false
 }
 
 apply from: 'artifactory.gradle'
