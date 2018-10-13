@@ -27,7 +27,7 @@ if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey') &&
                 publish = true
 
                 pkg {
-                    repo = 'RSocket-RPC'
+                    repo = 'RSocket'
                     name = 'rsocket-rpc-java'
                     licenses = ['Apache-2.0']
 
