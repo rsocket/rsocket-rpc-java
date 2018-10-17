@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey') &&
-        project.hasProperty('sonatypeUsername') && project.hasProperty('sonatypePassword')) {
+if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey')) {
+//&&
+       // project.hasProperty('sonatypeUsername') && project.hasProperty('sonatypePassword')) {
 
     subprojects {
         plugins.withId('com.jfrog.bintray') {
@@ -47,10 +48,10 @@ if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey') &&
                             sign = true
                         }
 
-                        mavenCentralSync {
-                            user = project.property('sonatypeUsername')
-                            password = project.property('sonatypePassword')
-                        }
+                        //mavenCentralSync {
+                          //  user = project.property('sonatypeUsername')
+                           // password = project.property('sonatypePassword')
+                        //}
                     }
                 }
             }
