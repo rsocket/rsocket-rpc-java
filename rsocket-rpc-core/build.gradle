@@ -42,7 +42,7 @@ protobuf {
     generatedFilesBaseDir = "${projectDir}/src/generated"
 
     protoc {
-        artifact = "com.google.protobuf:protoc:${ext['protobuf.version']}"
+        artifact = "com.google.protobuf:protoc"
     }
     plugins {
         rsocketRpc {

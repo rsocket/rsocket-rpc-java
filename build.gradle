@@ -76,7 +76,11 @@ subprojects {
 
         dependencies {
 
-            dependency "com.google.protobuf:protobuf-java:${ext['protobuf.version']}"
+            dependencySet(group: 'com.google.protobuf', version: ext['protobuf.version']) {
+                entry 'protobuf-java'
+                entry 'protoc'
+            }
+            dependency "com.google.protobuf:protoc:${ext['protobuf.version']}"
 
             dependency "javax.inject:javax.inject:1"
 		  	dependency "javax.annotation:javax.annotation-api:1.2"
