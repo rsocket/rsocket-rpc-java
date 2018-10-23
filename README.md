@@ -24,7 +24,7 @@ The standard [RSocket](http://rsocket.io) RPC Java implementation.
 
 ## Release Notes
 
-Please find release notes at [https://github.com/netifi/rsocket-rpc-java/releases](https://github.com/netifi/rsocket-rpc-java/releases).
+Please find release notes at [https://github.com/rsocket/rsocket-rpc-java/releases](https://github.com/rsocket/rsocket-rpc-java/releases).
 
 ## Bugs and Feedback
 
