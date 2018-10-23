@@ -1,4 +1,7 @@
-RSocket RPC Java
+# Get Started with RSocket RPC Java
+
+In this section we are going to learn the essential of RSocket-RPC and its implementation in Java
+
 ## Introduction
 RSocket RPC is an easy to use RPC layer that sits on top of [RSocket](http://rsocket.io). RSocket is a binary protocol for use on byte stream transports such as TCP, WebSockets, and [Aeron](https://github.com/real-logic/aeron). RSocket RPC is able to leverage RSockets unique features allowing you develop complex realtime, streaming applications without needing Kafka, Spark, etc. It is completely non-blocking and reactive making it responsive and high performance.
 
@@ -88,7 +91,7 @@ protobuf {
     }
     plugins {
         rsocketRpc {
-            artifact = 'io.rsocket.rpc:rsocket-rpc-protobuf:0.2.5'
+            artifact = 'io.rsocket.rpc:rsocket-rpc-protobuf:0.2.4'
         }
     }
     generateProtoTasks {
@@ -100,12 +103,19 @@ protobuf {
 
 // If you use Intellij add this so it can find the generated classes
 idea {
-    module {
-        sourceDirs += file("${projectDir}/build/generated/source/proto/main/java");
-        sourceDirs += file("${projectDir}/build/generated/source/proto/main/rsocketRpc");
-        sourceDirs += file("${projectDir}/build/generated/source/proto/test/java");
-        sourceDirs += file("${projectDir}/build/generated/source/proto/test/rsocketRpc");
-    }
+  module {
+	sourceDirs += file("src/main/proto")
+	sourceDirs += file("src/generated/main/java")
+	sourceDirs += file("src/generated/main/rsocketRpc")
+
+	generatedSourceDirs += file('src/generated/main/java')
+	generatedSourceDirs += file('src/generated/main/rsocketRpc')
+  }
+}
+
+// clean generated code
+clean {
+  delete 'src/generated/main'
 }
 ```
 
@@ -168,13 +178,13 @@ Here is what the simple `SimpleService` is actually and interface, and represent
 ```
 class DefaultSimpleService implements SimpleService {
     @Override
-    public Mono<Void> fireAndForget(SimpleRequest message) {
-      System.out.println("got message -> " + message.getRequestMessage());
-      return Mono.empty();
-    }
+	public Mono<Empty> fireAndForget(SimpleRequest message, ByteBuf metadata) {
+	  System.out.println("got message -> " + message.getRequestMessage());
+	  return Mono.just(Empty.getDefaultInstance());
+	}
     
     @Override
-    public Mono<SimpleResponse> requestReply(SimpleRequest message) {
+    public Mono<SimpleResponse> requestReply(SimpleRequest message, ByteBuf metadata) {
       return Mono.fromCallable(
           () ->
               SimpleResponse.newBuilder()
@@ -183,7 +193,7 @@ class DefaultSimpleService implements SimpleService {
     }
     
     @Override
-    public Mono<SimpleResponse> streamingRequestSingleResponse(Publisher<SimpleRequest> messages) {
+    public Mono<SimpleResponse> streamingRequestSingleResponse(Publisher<SimpleRequest> messages, ByteBuf metadata) {
       return Flux.from(messages)
           .windowTimeout(10, Duration.ofSeconds(500))
           .take(1)
@@ -219,7 +229,7 @@ class DefaultSimpleService implements SimpleService {
     }
     
     @Override
-    public Flux<SimpleResponse> requestStream(SimpleRequest message) {
+    public Flux<SimpleResponse> requestStream(SimpleRequest message, ByteBuf metadata) {
       String requestMessage = message.getRequestMessage();
       return Flux.interval(Duration.ofMillis(200))
           .onBackpressureDrop()
@@ -228,8 +238,8 @@ class DefaultSimpleService implements SimpleService {
     }
     
     @Override
-    public Flux<SimpleResponse> streamingRequestAndResponse(Publisher<SimpleRequest> messages) {
-      return Flux.from(messages).flatMap(this::requestReply);
+    public Flux<SimpleResponse> streamingRequestAndResponse(Publisher<SimpleRequest> messages, ByteBuf metadata) {
+      return Flux.from(messages).flatMap(e -> requestReply(e, metadata));
     }
 }
 ```
@@ -237,42 +247,36 @@ class DefaultSimpleService implements SimpleService {
 ### RSocket RPC Server Configuration
 Each generated service has a client and server implementation generated for you. After you have implemented the generated interface you need to hand the implementation to the  server. See the below example:
 ```
-SimpleServiceServer serviceServer = new SimpleServiceServer(new DefaultSimpleService());
+SimpleServiceServer serviceServer = new SimpleServiceServer(new DefaultSimpleService(), Optional.empty(), Optional.empty());
 ```
 
-Once you have created an instance of the the server you need to configure RSocket. The server can either be configured the RSocket that receives the connection or the RSocket that makes the connection. The following examples uses TCP, but can use other transports as well. The example also uses the optional `RequestHandlingRSocket`. The `RequestHandlingRSocket` is a special RSocket that will allow you to support more than one RSocket RPC Server implementation on the same RSocket connection. If you don't need to support more than one socket you don't need to use it. Just return the generated server directly.
+Once you have created an instance of the the server you need to configure RSocket. The 
+following is a RSocket server configuration
 
-#### RSocket Server Configuration
-This configures the receiver of a connection, typically a server, to handle requests to the `SimeplService` implementation.
-```
-SimpleServiceServer serviceServer = new SimpleServiceServer(new DefaultSimpleService());
-  
-    RSocketFactory.receive()
-        .acceptor(
-            (setup, sendingSocket) ->
-                Mono.just(new RequestHandlingRSocket(serviceServer)))
-        .transport(TcpServerTransport.create(8801))
+```java
+CloseableChannel closeableChannel = RSocketFactory
+        .receive()
+        .acceptor((setup, sendingSocket) -> Mono.just(
+            new RequestHandlingRSocket(serviceServer)
+        ))
+        .transport(TcpServerTransport.create(8081))
         .start()
         .block();
 ```
 
-#### RSocket Client Configuration
-This configures a initiator of a connection, typically a client, to handle requests to the `SimpleService` implementation.
+#### RSocket RPC Client common Configuration
+The RSocket RPC compiler generates a client as well as a server. The client implements the generated interface. You can configure the client either from an RSocket client connection, or server connection. The following shows how to  configure a initiator of a connection, typically a client, to send requests to the `SimpleService` implementation.
+
+```java
+RSocket rSocket = RSocketFactory
+	.connect()
+	.transport(TcpClientTransport.create(8801))
+	.start()
+	.block();
+SimpleServiceClient serviceClient = new SimpleServiceClient(rSocket);
 ```
-SimpleServiceServer serviceServer = new SimpleServiceServer(new DefaultSimpleService());
 
-RSocketFactory
-        .connect()
-        .acceptor(rSocket -> new RequestHandlingRSocket(serviceServer))
-        .transport(TcpClientTransport.create(8801))
-        .start()
-        .block();
-```
-
-### RSocket RPC Client Configuration
-The RSocket RPC compiler generates a client as well as a server. The client implements the generated interface. You can configure the client either from an RSocket client connection, or server connection.
-
-#### RSocket Server Configuration
+#### RSocket RPC client over Server Configuration
 This configures the receiver of a connection, typically a server, to call the remote  `SimpleService`. Notice that the client is created inside the closure in the acceptor method. The method passes in a variable called `sendingSocket`. This is the RSocket that is the connection to the client. You  can make calls to the client *without* receiving requests first, or ever.
 ```
 RSocketFactory.receive()
@@ -297,17 +301,8 @@ RSocketFactory.receive()
         .block();
 ```
 
-#### RSocket Client Configuration
-This configures an initiator of a connection, typically a client, to call the remote  `SimpleService`.
-```
-RSocket rSocket = RSocketFactory.connect().transport(TcpClientTransport.create(8801)).start().block();
-
-SimpleServiceClient client = new SimpleServiceClient(rSocket);
-
-```
-
 ### Calling the client
-One the client is created, it can be called like any other method. Here is an example call the `streamingRequestSingleResponse` method.
+Once the client is created, it can be called like any other method. Here is an example call the `streamingRequestSingleResponse` method.
 ```
 SimpleServiceClient client = new SimpleServiceClient(rSocket);
 
@@ -321,21 +316,8 @@ SimpleResponse response = client.streamingRequestSingleResponse(requests).block(
 System.out.println(response.getResponseMessage());
 ```
 
-The above example streams in 11 items to a server. The server receives the stream, counts the most common words, and then returns a message detailing the data received. 
+The above example streams in 11 items to a server. The server receives the stream, counts the most common words, and then returns a message detailing the data received.
 
-## Release Notes
+## Next Steps
 
-Please find release notes at [https://github.com/netifi/rsocket-rpc-java/releases](https://github.com/netifi/rsocket-rpc-java/releases).
-
-## Bugs and Feedback
-
-For bugs, questions, and discussions please use the [Github Issues](https://github.com/netifi/rsocket-rpc-java/issues).
-
-## License
-Copyright 2017 Netifi Inc.
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+See `rsocket-rpc-examples` for more examples and use-cases.

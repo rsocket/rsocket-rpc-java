@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package io.rsocket.rpc.quickstart.service;
+
+option java_package = "io.rsocket.rpc.quickstart.service.protobuf";
+option java_outer_classname = "ServiceProto";
+option java_multiple_files = true;
+
+service HelloService {
+
+    // Returns a Hello World Message
+    rpc SayHello (HelloRequest) returns (HelloResponse) {}
+}
+
+message HelloRequest {
+    string name = 1;
+}
+
+message HelloResponse {
+    string message = 1;
+}
