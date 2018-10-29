@@ -4,13 +4,13 @@ description = 'RSocket RPC Library'
 
 dependencies {
     implementation project (':rsocket-rpc-protobuf')
-    implementation 'io.opentracing:opentracing-api'
-    implementation 'javax.inject:javax.inject'
-    implementation 'javax.annotation:javax.annotation-api'
     implementation 'com.google.protobuf:protobuf-java'
-    implementation 'io.rsocket:rsocket-core'
-    implementation 'io.rsocket:rsocket-transport-netty'
-    implementation 'io.micrometer:micrometer-core'
+
+    api 'io.opentracing:opentracing-api'
+    api 'javax.inject:javax.inject'
+    api 'javax.annotation:javax.annotation-api'
+    api 'io.rsocket:rsocket-core'
+    api 'io.micrometer:micrometer-core'
 
     protobuf project(':rsocket-rpc-metrics-idl')
 
@@ -42,7 +42,7 @@ protobuf {
     generatedFilesBaseDir = "${projectDir}/src/generated"
 
     protoc {
-        artifact = "com.google.protobuf:protoc:${ext['protobuf.version']}"
+        artifact = "com.google.protobuf:protoc"
     }
     plugins {
         rsocketRpc {

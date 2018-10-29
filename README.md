@@ -4,6 +4,7 @@
 The standard [RSocket](http://rsocket.io) RPC Java implementation.
 
 ## Build from Source
+
 1. Building rsocket-rpc-java requires installation of the [Protobuf](https://github.com/google/protobuf) compiler. RSocket RPC requires Protobuf 3.6.x or higher.
 
     For Mac users you can easily install the Protobuf compiler using Homebrew:
@@ -15,8 +16,18 @@ The standard [RSocket](http://rsocket.io) RPC Java implementation.
 2. Run the following Gradle command to build the project:
 
         $ ./gradlew clean build
+        
+## What Next?
+
+ * [Motivation](./docs/motivation.md)
+ * [Get Started](./docs/get-started.md)  
+
+## Release Notes
+
+Please find release notes at [https://github.com/rsocket/rsocket-rpc-java/releases](https://github.com/rsocket/rsocket-rpc-java/releases).
 
 ## Bugs and Feedback
+
 For bugs, questions, and discussions please use the [Github Issues](https://github.com/netifi/rsocket-rpc-java/issues).
 
 ## License

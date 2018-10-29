@@ -6,7 +6,7 @@ description = 'RSocket RPC Protobf IDL'
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:${ext['protobuf.version']}"
+        artifact = "com.google.protobuf:protoc"
     }
     generateProtoTasks {
         all().each { task ->
