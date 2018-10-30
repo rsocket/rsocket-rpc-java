@@ -9,7 +9,7 @@ matrix:
 
     # check what has been installed by listing contents of protobuf folder
     before_script:
-    - ls -R $HOME/google/protobuf
+    - ls -R $HOME
 #    before_install:
 #    - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
 #    - tar -xzvf protobuf-cpp-3.6.1.tar.gz
