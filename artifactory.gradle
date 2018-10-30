@@ -23,7 +23,7 @@ if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey')) {
                     contextUrl = 'https://oss.jfrog.org'
 
                     repository {
-                        repoKey = 'oss-snapshot-local'
+                        repoKey = version.contains('SNAPSHOT') ? 'oss-snapshot-local' : 'oss-release-local'
 
                         // Credentials for oss.jfrog.org are a user's Bintray credentials
                         username = project.property('bintrayUser')
