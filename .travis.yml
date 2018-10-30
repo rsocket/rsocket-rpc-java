@@ -5,6 +5,7 @@ matrix:
     jdk: oraclejdk8
     language: generic
     before_install:
+    - ls -R $HOME
     - "bash ./ci/install-protobuf.sh"
 
     # check what has been installed by listing contents of protobuf folder
