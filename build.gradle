@@ -1,13 +1,10 @@
 plugins {
-    id 'java-library'
-    id 'com.google.protobuf' version '0.8.5' apply false
     id 'com.gradle.build-scan' version '1.16'
     id 'com.google.osdetector' version '1.4.0'
     id 'com.github.sherter.google-java-format' version '0.7.1' apply false
     id 'com.github.johnrengelman.shadow' version '2.0.1' apply false
     id 'com.jfrog.artifactory' version '4.7.3' apply false
     id 'com.jfrog.bintray' version '1.8.4' apply false
-    id 'io.spring.dependency-management' version '1.0.6.RELEASE' apply false
     id 'me.champeau.gradle.jmh' version '0.4.7' apply false
     id 'io.morethan.jmhreport' version '0.9.0' apply false
 }
@@ -19,14 +16,9 @@ apply from: 'publication.gradle'
 buildScan { licenseAgreementUrl = 'https://gradle.com/terms-of-service'; licenseAgree = 'yes' }
 
 subprojects {
-
     apply plugin: 'idea'
     apply plugin: 'java'
     apply plugin: 'java-library'
-
-    apply plugin: 'com.google.protobuf'
-    apply plugin: 'io.spring.dependency-management'
-
     apply plugin: 'com.github.sherter.google-java-format'
 
     apply plugin: 'maven'
@@ -67,68 +59,5 @@ subprojects {
     googleJavaFormat {
         toolVersion = '1.6'
         exclude '**/generated'
-    }
-
-    dependencyManagement {
-        imports {
-            mavenBom "io.projectreactor:reactor-bom:${ext['reactor-bom.version']}"
-        }
-
-        dependencies {
-
-            dependencySet(group: 'com.google.protobuf', version: ext['protobuf.version']) {
-                entry 'protobuf-java'
-                entry 'protoc'
-            }
-            dependency "com.google.protobuf:protoc:${ext['protobuf.version']}"
-
-            dependency "javax.inject:javax.inject:1"
-		  	dependency "javax.annotation:javax.annotation-api:1.2"
-
-            dependencySet(group: 'org.apache.logging.log4j', version: ext['log4j.version']) {
-                entry "log4j-api"
-                entry "log4j-core"
-                entry "log4j-slf4j-impl"
-            }
-            dependency "org.slf4j:slf4j-simple:${ext['slf4j.version']}"
-
-            dependencySet(group: 'io.rsocket', version: ext['rsocket.version']) {
-                entry 'rsocket-core'
-                entry 'rsocket-transport-netty'
-                entry 'rsocket-transport-local'
-            }
-
-            dependency "io.micrometer:micrometer-core:${ext['micrometer.version']}"
-            dependency "io.opentracing:opentracing-api:${ext['opentracing.version']}"
-            dependency "io.opentracing.brave:brave-opentracing:${ext['opentracing.brave.version']}"
-            dependency "io.zipkin.reporter2:zipkin-sender-okhttp3:${ext['zipkin.sender.version']}"
-
-            // TODO: Remove after JUnit5 migration
-            // TEST DEPENDENCIES
-
-            dependency 'junit:junit:4.12'
-
-            dependencySet(group: 'org.junit.jupiter', version: ext['junit.version']) {
-                entry 'junit-jupiter-api'
-                entry 'junit-jupiter-engine'
-                entry 'junit-jupiter-params'
-            }
-
-
-            dependency "org.mockito:mockito-core:${ext['mockito.version']}"
-            dependency "org.hamcrest:hamcrest-library:${ext['hamcrest.version']}"
-            dependency "org.assertj:assertj-core:${ext['assertj.version']}"
-            dependency "org.hdrhistogram:HdrHistogram:${ext['hdrhistogram.version']}"
-
-
-            dependencySet(group: 'org.junit.vintage', version: ext['junit.version']) {
-                entry 'junit-vintage-engine'
-            }
-
-            dependencySet(group: 'org.openjdk.jmh', version: ext['jmh.version']) {
-                entry 'jmh-core'
-                entry 'jmh-generator-annprocess'
-            }
-        }
     }
 }

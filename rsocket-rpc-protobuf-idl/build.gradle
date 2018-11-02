@@ -1,5 +1,5 @@
-dependencies {
-    protobuf 'com.google.protobuf:protobuf-java'
+plugins {
+    id 'com.google.protobuf' version '0.8.5'
 }
 
 description = 'RSocket RPC Protobf IDL'
