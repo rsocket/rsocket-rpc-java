@@ -1,5 +1,6 @@
 plugins {
   id 'cpp'
+  id 'com.google.protobuf' version '0.8.5'
 }
 
 description = 'RSocket RPC Protobuf Generator'
@@ -11,12 +12,6 @@ def pathToPlugin = "${artifactStagingPath.getPath()}/${pluginName}"
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
-
-dependencies {
-  compileOnly 'io.projectreactor:reactor-core'
-  compileOnly 'com.google.protobuf:protobuf-java'
-  compileOnly 'javax.inject:javax.inject'
-}
 
 protobuf {
   generatedFilesBaseDir = "${projectDir}/src/generated"
@@ -185,6 +180,8 @@ plugins.withType(MavenPublishPlugin) {
 	publications {
 	  maven(MavenPublication) {
 		groupId project.group
+
+		from components.java
 
 		artifact(pathToPlugin) {
 		  classifier osdetector.os + "-" + osdetector.arch
