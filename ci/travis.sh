@@ -15,12 +15,25 @@ elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bin
 
 elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" != "" ] && [ "$bintrayUser" != "" ] ; then
 
-    echo -e "Building Tag $TRAVIS_REPO_SLUG/$TRAVIS_TAG"
-    ./gradlew \
-        -Pversion="$TRAVIS_TAG" \
-        -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
-        -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
-        build bintrayUpload --stacktrace
+    if [ "$TRAVIS_OS_NAME" != "linux" ]; then
+
+        echo -e "Building Tag $TRAVIS_REPO_SLUG/$TRAVIS_TAG"
+        ./gradlew \
+            -Pversion="$TRAVIS_TAG" \
+            -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
+            -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
+            build bintrayUpload --stacktrace
+
+    else
+
+        echo -e "Building Tag $TRAVIS_REPO_SLUG/$TRAVIS_TAG"
+        ./gradlew \
+            -Pversion="$TRAVIS_TAG" \
+            -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
+            -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
+            :rsocket-rpc-protobuf:build :rsocket-rpc-protobuf:bintrayUpload --stacktrace
+
+    fi
 
 else
 
