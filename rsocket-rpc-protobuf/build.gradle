@@ -181,8 +181,6 @@ plugins.withType(MavenPublishPlugin) {
 	  maven(MavenPublication) {
 		groupId project.group
 
-		from components.java
-
 		artifact(pathToPlugin) {
 		  classifier osdetector.os + "-" + osdetector.arch
 		  builtBy buildArtifacts
