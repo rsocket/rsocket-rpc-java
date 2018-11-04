@@ -50,6 +50,7 @@ if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey') &&
                         mavenCentralSync {
                             user = project.property('sonatypeUsername')
                             password = project.property('sonatypePassword')
+                            close = project.property('stage') == 'Deploy' ? '1' : '0'
                         }
                     }
                 }

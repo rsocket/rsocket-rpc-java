@@ -1,7 +1,8 @@
 sudo: required
-matrix:
+jobs:
   include:
-  - os: linux
+  - stage: build
+    os: linux
     jdk: oraclejdk8
     language: generic
     before_install:
@@ -10,7 +11,8 @@ matrix:
     - pushd protobuf-3.6.1 && ./configure --disable-shared && make && sudo make install
       && popd
     script: "./ci/travis.sh"
-  - os: osx
+  - stage: deploy
+    os: osx
     osx_image: xcode9.4
     language: generic
     env:
