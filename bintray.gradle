@@ -25,6 +25,7 @@ if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey') &&
 
                 publications = ['maven']
                 publish = true
+                override = true
 
                 pkg {
                     repo = 'RSocket'
@@ -50,7 +51,7 @@ if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey') &&
                         mavenCentralSync {
                             user = project.property('sonatypeUsername')
                             password = project.property('sonatypePassword')
-                            close = project.property('stage') == 'Deploy' ? '1' : '0'
+                            close = project.findProperty('stage') == 'Deploy' ? '1' : '0'
                         }
                     }
                 }
