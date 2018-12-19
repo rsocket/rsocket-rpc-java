@@ -1,6 +1,5 @@
 plugins {
   id 'cpp'
-  id 'com.google.protobuf' version '0.8.5'
 }
 
 description = 'RSocket RPC Protobuf Generator'
@@ -12,29 +11,6 @@ def pathToPlugin = "${artifactStagingPath.getPath()}/${pluginName}"
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
-
-protobuf {
-  generatedFilesBaseDir = "${projectDir}/src/generated"
-
-  protoc {
-	artifact = "com.google.protobuf:protoc"
-  }
-  plugins {
-	rsocketRpc {
-	  path = pathToPlugin
-	}
-  }
-  generateProtoTasks {
-	all().each { task ->
-	  task.dependsOn ':rsocket-rpc-protobuf:java_pluginExecutable'
-	  task.inputs.file "$pathToPlugin"
-	  task.inputs.file "${rootProject.projectDir}/build.gradle"
-	  task.plugins {
-		rsocketRpc {}
-	  }
-	}
-  }
-}
 
 // Adds space-delimited arguments from the environment variable env to the
 // argList.
@@ -157,13 +133,6 @@ task buildArtifacts(type: Copy) {
 	}
   }
   into artifactStagingPath
-}
-
-compileJava.dependsOn ':rsocket-rpc-protobuf:buildArtifacts'
-compileJava.dependsOn ':rsocket-rpc-protobuf:generateProto'
-
-clean {
-  delete protobuf.generatedFilesBaseDir
 }
 
 artifacts {
