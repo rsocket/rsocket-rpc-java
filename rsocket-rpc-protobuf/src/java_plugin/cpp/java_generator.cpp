@@ -907,8 +907,6 @@ static void PrintServer(const ServiceDescriptor* service,
       "@$RSocketRpcGenerated$(\n"
       "    type = $RSocketRpcResourceType$.SERVICE,\n"
       "    idlClass = $service_name$.class)\n"
-      "@$Named$(\n"
-      "    value =\"$server_class_name$\")\n"
       "public final class $server_class_name$ extends $AbstractRSocketService$ {\n");
   p->Indent();
 
@@ -978,7 +976,6 @@ static void PrintServer(const ServiceDescriptor* service,
 
   p->Print(
       *vars,
-      "@$Inject$\n"
       "public $server_class_name$($service_name$ service, $Optional$<$MeterRegistry$> registry, $Optional$<$Tracer$> tracer) {\n");
   p->Indent();
   p->Print(
@@ -1616,8 +1613,6 @@ void GenerateServer(const ServiceDescriptor* service,
   vars["MessageLite"] = "com.google.protobuf.MessageLite";
   vars["Parser"] = "com.google.protobuf.Parser";
   vars["Optional"] = "java.util.Optional";
-  vars["Inject"] = "javax.inject.Inject";
-  vars["Named"] = "javax.inject.Named";
   vars["RSocketRpcResourceType"] = "io.rsocket.rpc.annotations.internal.ResourceType";
   vars["RSocketRpcTracing"] = "io.rsocket.rpc.tracing.Tracing";
   vars["Tag"] = "io.rsocket.rpc.tracing.Tag";

@@ -591,8 +591,6 @@ static void PrintServer(const ServiceDescriptor* service,
       "@$RSocketRpcGenerated$(\n"
       "    type = $RSocketRpcResourceType$.SERVICE,\n"
       "    idlClass = Blocking$service_name$.class)\n"
-      "@$Named$(\n"
-      "    value =\"Blocking$server_class_name$\")\n"
       "public final class Blocking$server_class_name$ extends $AbstractRSocketService$ {\n");
   p->Indent();
 
@@ -635,7 +633,6 @@ static void PrintServer(const ServiceDescriptor* service,
 
   p->Print(
       *vars,
-      "@$Inject$\n"
       "public Blocking$server_class_name$(Blocking$service_name$ service, $Optional$<$Scheduler$> scheduler, $Optional$<$MeterRegistry$> registry) {\n");
   p->Indent();
   p->Print(
@@ -1229,8 +1226,6 @@ void GenerateServer(const ServiceDescriptor* service,
   vars["Scheduler"] = "reactor.core.scheduler.Scheduler";
   vars["Schedulers"] = "reactor.core.scheduler.Schedulers";
   vars["Optional"] = "java.util.Optional";
-  vars["Inject"] = "javax.inject.Inject";
-  vars["Named"] = "javax.inject.Named";
 
   Printer printer(out, '$');
     string package_name = ServiceJavaPackage(service->file());

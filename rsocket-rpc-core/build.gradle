@@ -12,7 +12,6 @@ dependencies {
     implementation 'com.google.protobuf:protobuf-java'
 
     api 'io.opentracing:opentracing-api'
-    api 'javax.inject:javax.inject'
     api 'javax.annotation:javax.annotation-api'
     api 'io.rsocket:rsocket-core'
     api 'io.micrometer:micrometer-core'
@@ -22,7 +21,6 @@ dependencies {
     testImplementation 'io.opentracing.brave:brave-opentracing'
     testImplementation 'junit:junit'
 
-    testImplementation 'javax.inject:javax.inject'
     testImplementation 'io.projectreactor:reactor-test'
     testImplementation 'com.google.protobuf:protobuf-java'
     testImplementation 'org.hdrhistogram:HdrHistogram'
@@ -47,7 +45,6 @@ dependencyManagement {
         }
         dependency "com.google.protobuf:protoc:${ext['protobuf.version']}"
 
-        dependency "javax.inject:javax.inject:1"
         dependency "javax.annotation:javax.annotation-api:1.2"
 
         dependencySet(group: 'org.apache.logging.log4j', version: ext['log4j.version']) {
