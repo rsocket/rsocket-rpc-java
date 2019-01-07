@@ -25,9 +25,19 @@ public class RequestHandlingRSocket extends AbstractRSocket {
     }
   }
 
+  /**
+   * @deprecated in favour of {@link #withService(RSocketRpcService)}
+   * @param rsocketService
+   */
+  @Deprecated
   public void addService(RSocketRpcService rsocketService) {
     String service = rsocketService.getService();
     registeredServices.put(service, rsocketService);
+  }
+
+  public RequestHandlingRSocket withService(RSocketRpcService rSocketRpcService) {
+    addService(rSocketRpcService);
+    return this;
   }
 
   @Override
