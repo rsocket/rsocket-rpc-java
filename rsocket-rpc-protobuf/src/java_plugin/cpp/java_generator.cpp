@@ -1037,7 +1037,7 @@ static void PrintServer(const ServiceDescriptor* service,
 
       p->Print(
          *vars,
-         "this.$lower_method_name$Trace = $Function$.identity();\n");
+         "this.$lower_method_name$Trace = (ignored) -> $Function$.identity();\n");
     }
 
     // } else tracing not present {
