@@ -3,25 +3,25 @@
 In this section we are going to learn the essential of RSocket-RPC and its implementation in Java
 
 ## Introduction
-RSocket RPC is an easy to use RPC layer that sits on top of [RSocket](http://rsocket.io). RSocket is a binary protocol for use on byte stream transports such as TCP, WebSockets, and [Aeron](https://github.com/real-logic/aeron). RSocket RPC is able to leverage RSockets unique features allowing you develop complex realtime, streaming applications without needing Kafka, Spark, etc. It is completely non-blocking and reactive making it responsive and high performance.
+RSocket RPC is an easy to use RPC layer that sits on top of [RSocket](http://rsocket.io). RSocket is a binary protocol for use on byte stream transports such as TCP, WebSockets, and [Aeron](https://github.com/real-logic/aeron). RSocket RPC is able to leverage RSocket’s unique features allowing you develop complex realtime, streaming applications without needing Kafka, Spark, etc. It is completely non-blocking and reactive making it responsive and high performance.
 
 ### Protobuf
-RSocket RPC use [Protobuf 3](https://developers.google.com/protocol-buffers/docs/proto3) as its IDL. Protobuf works well with RSocket because they are both binary. Using Protobuf makes it easy to switch from gRPC. You only need to replace the gRPC compiler with the RSocket RPC compiler to start using RSocket RPC.
+RSocket RPC uses [Protobuf 3](https://developers.google.com/protocol-buffers/docs/proto3) as its IDL. Protobuf works well with RSocket because they are both binary. Using Protobuf makes it easy to switch from gRPC. You only need to replace the gRPC compiler with the RSocket RPC compiler to start using RSocket RPC.
 
 ### Full Duplex
-RSocket RPC is built with a full duplex protocol- RSocket. An application that initiates a connection (traditionally a client) can actually serve requests from the application it is connecting with (traditionally the server).  In other words a client can connect to a server, and the server can call a RSocket RPC service located on the client. The server does not have to wait for the client to initiate a call, only the connection is necessary.
+RSocket RPC is built with a full duplex protocol RSocket. An application that initiates a connection (traditionally a client) can actually serve requests from the application it is connecting with (traditionally the server).  In other words a client can connect to a server, and the server can call a RSocket RPC service located on the client. The server does not have to wait for the client to initiate a call, only the connection is necessary.
 
 ### Reactive Streams Compatible
-RSocket RPC's Java implementation is built using a Reactive Streams compliant library [Reactor-core](https://github.com/reactor/reactor-core). RSocket RPC generated code returns either a Flux which is a stream of many, or a Mono which is a stream of one. RSocket RPC is compatible with any [Reactive Streams](http://www.reactive-streams.org/) implementation including RXJava 2, and Akka Streams. 
+RSocket RPC's Java implementation is built using a [Reactive Streams](http://www.reactive-streams.org/) compliant library, [Reactor-core](https://github.com/reactor/reactor-core). RSocket RPC generated code returns either a Flux, which is a stream of many, or a Mono, which is a stream of one. RSocket RPC is compatible with any Reactive Streams implementation including RXJava 2 and Akka Streams. 
 
 ### Back-pressure
-RSocket RPC respects both RSocket and Reactive Stream back-pressure. Back-pressure is where the consumer of a stream sends stream's producer a message indicating how many messages it can handle. This makes RSocket RPC services very reliable, and  not be overwhelmed with demand.
+RSocket RPC respects both RSocket and Reactive Streams back-pressure. Back-pressure is where the consumer of a stream sends the stream's producer a message indicating how many messages it can handle. This makes RSocket RPC services very reliable, and not overwhelmed with demand.
 
 ## Interaction Models
 RSocket RPC has five interaction models. They are modeled using a Protobuf 3 IDL. This section details the interaction models, and gives an example Protobuf IDL definition. The interaction models are request/response, request/stream, fire-and-forget, streaming request/one response, and streaming request/streaming response.
 
 ### Request / Response
-Request response is analogous to a HTTP Rest call. A major difference is because this is non-blocking the caller can wait for the response for a long time without blocking other requests on the same connection.
+Request-response is analogous to a HTTP Rest call. A major difference is that because this is non-blocking the caller can wait for the response for a long time without blocking other requests on the same connection.
 
 #### Protobuf
 ```
@@ -29,17 +29,17 @@ rpc RequestReply (SimpleRequest) returns (SimpleResponse) {}
 ```
 
 ### Fire-and-Forget
-Fire and forget sends a request without a response. This is not just ignoring the response; the underlying protocol does not send anything back to the caller. To make a request fire-and-forget with RSocket RPC you need to return google.protobuf.Empty in your IDL. This will generate fire and forget code.
+Fire-and-forget sends a request without expecting a response. This is not just ignoring the response; the underlying protocol does not send anything back to the caller. To make a request fire-and-forget with RSocket RPC you need to return `google.protobuf.Empty` in your IDL. This will generate fire-and-forget code.
 
 #### Protobuf
 ```
 import "google/protobuf/empty.proto";
-...
+⋮
 rpc FireAndForget (SimpleRequest) returns (google.protobuf.Empty) {}
 ```
 
 ### Single Request / Stream Response
-Sends a single request and then receives multiple responses. This can be used to model subscriptions to topics and queues. It can be also used to do things like page from a database. To generate this mark the response with the stream keyword.
+This interaction model sends a single request and then receives multiple responses. This can be used to model subscriptions to topics and queues. It can be also used to do things like page from a database. To generate this, mark the response with the `stream` keyword.
 
 #### Protobuf
 ```
@@ -47,8 +47,7 @@ rpc RequestStream (SimpleRequest) returns (stream SimpleResponse) {}
 ```
 
 ### Streaming Request / Single Response
-Sends a stream of requests, and receives a single response.  This can be used to model transactions. You can send multiple requests over a logic channel, and then receive a single response if they were processed correctly or not. Mark the request with the stream keyword to create this interaction model.
-
+This interaction model sends a stream of requests and then receives a single response. This can be used to model transactions. You can send multiple requests over a logic channel, and then receive a single response indicating whether they were processed correctly or not. Mark the request with the `stream` keyword to create this interaction model.
 
 #### Protobuf
 ```
@@ -56,7 +55,7 @@ rpc StreamingRequestSingleResponse (stream SimpleRequest) returns (SimpleRespons
 ```
 
 ### Streaming Request / Streaming Response
-Sends request stream and returns response stream. This models a fully duplex interaction. Mark the request and response with the stream keyword to create this interaction model.
+This interaction model sends a request stream and returns a response stream. This models a fully-duplex interaction. Mark the request and response with the `stream` keyword to create this interaction model.
 
 #### Protobuf
 ```
@@ -71,12 +70,12 @@ rpc StreamingRequestAndResponse (stream SimpleRequest) returns (stream SimpleRes
 
 #### Installing Protobuf
 ##### Mac OS
-For Mac users you can easily install the Protobuf compiler using Homebrew:
+Mac users can easily install the Protobuf compiler using Homebrew:
 ```
 $ brew install Protobuf
 ```
 ##### Ubuntu
-Ubuntu users can install Protobuf using apt-get:
+Ubuntu users can install Protobuf using `apt-get`:
 ```
 $ sudo apt-get install libProtobuf-java Protobuf-compiler
 ```
@@ -120,7 +119,7 @@ clean {
 ```
 
 ### Define a Protobuf
-After you have installed Protobuf and configured Gradle you need to create a Protobuf IDL to define your service. The following is a simple Protobuf example that defines all the interaction models:
+After you have installed Protobuf and configured Gradle you need to create a Protobuf IDL to define your service. The following is a simple Protobuf example that defines all the interaction model varieties:
 ```
 syntax = "proto3";
 
@@ -164,17 +163,17 @@ After you have configured your Protobuf IDL, use the Protobuf compiler via the G
 $ gradlew generateProto
 ```
 
-The Protobuf compiler will generate Protobuf builders for the message, and then use the RSocket RPC compiler to generate an interface for the service defined in the IDL. It will also generate a client that implements the interface, and a server takes an implementation of the interface. This is what servers the requests. 
+The Protobuf compiler will generate Protobuf builders for the message, and then use the RSocket RPC compiler to generate an interface for the service defined in the IDL. It will also generate a client that implements the interface, and a server takes an implementation of the interface. This is what serves the requests. 
 
-Using the above IDL as an example RSocket RPC will generate several class from the above example, but the ones that you need to concern yourself are:
-* SimpleRequest
-* SimpleResponse
-* SimpleService
-* SimpleServiceClient
-* SimpleServiceServer
+Using the above IDL as an example RSocket RPC will generate several classes from the above example, but the ones that you need to concern yourself with are:
+* `SimpleRequest`
+* `SimpleResponse`
+* `SimpleService`
+* `SimpleServiceClient`
+* `SimpleServiceServer`
 
 ### RSocket RPC IDL Example
-Here is what the simple `SimpleService` is actually and interface, and represent the service contract from the IDL. The `SimpleService` interface needs to be implemented in order to handle requests. Here is an example implementation:
+Here is an example implementation of `SimpleService`, the service contract from the IDL. The `SimpleService` interface needs to be implemented in order to handle requests:
 ```
 class DefaultSimpleService implements SimpleService {
     @Override
@@ -245,12 +244,12 @@ class DefaultSimpleService implements SimpleService {
 ```
 
 ### RSocket RPC Server Configuration
-Each generated service has a client and server implementation generated for you. After you have implemented the generated interface you need to hand the implementation to the  server. See the below example:
+The RSocket RPC Compiler generates a client and server interface for you. After you have implemented these generated interfaces you need to hand the implementation to the server. See the below example:
 ```
 SimpleServiceServer serviceServer = new SimpleServiceServer(new DefaultSimpleService(), Optional.empty(), Optional.empty());
 ```
 
-Once you have created an instance of the the server you need to configure RSocket. The 
+Once you have created an instance of the the server, you need to configure RSocket. The 
 following is a RSocket server configuration
 
 ```java
@@ -264,8 +263,8 @@ CloseableChannel closeableChannel = RSocketFactory
         .block();
 ```
 
-#### RSocket RPC Client common Configuration
-The RSocket RPC compiler generates a client as well as a server. The client implements the generated interface. You can configure the client either from an RSocket client connection, or server connection. The following shows how to  configure a initiator of a connection, typically a client, to send requests to the `SimpleService` implementation.
+#### RSocket RPC Client Common Configuration
+The RSocket RPC compiler generates a client as well as a server. The client implements the generated interface. You can configure the client either from an RSocket client connection, or server connection. The following shows how to configure an initiator of a connection, typically a client, to send requests to the `SimpleService` implementation.
 
 ```java
 RSocket rSocket = RSocketFactory
@@ -276,8 +275,8 @@ RSocket rSocket = RSocketFactory
 SimpleServiceClient serviceClient = new SimpleServiceClient(rSocket);
 ```
 
-#### RSocket RPC client over Server Configuration
-This configures the receiver of a connection, typically a server, to call the remote  `SimpleService`. Notice that the client is created inside the closure in the acceptor method. The method passes in a variable called `sendingSocket`. This is the RSocket that is the connection to the client. You  can make calls to the client *without* receiving requests first, or ever.
+#### RSocket RPC Client over Server Configuration
+This configures the receiver of a connection, typically a server, to call the remote  `SimpleService`. Notice that the client is created inside the closure in the acceptor method. The method passes in a variable called `sendingSocket`. This is the RSocket that is the connection to the client. You can make calls to the client *without* receiving requests first, or ever.
 ```
 RSocketFactory.receive()
         .acceptor(
@@ -301,8 +300,8 @@ RSocketFactory.receive()
         .block();
 ```
 
-### Calling the client
-Once the client is created, it can be called like any other method. Here is an example call the `streamingRequestSingleResponse` method.
+### Calling the Client
+Once the client is created, it can be called like any other method. Here is an example call to the `streamingRequestSingleResponse` method.
 ```
 SimpleServiceClient client = new SimpleServiceClient(rSocket);
 
