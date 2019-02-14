@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
-import io.rsocket.internal.SwitchTransformFlux;
+import io.rsocket.ResponderRSocket;
 import io.rsocket.rpc.RSocketRpcService;
 import io.rsocket.rpc.exception.ServiceNotFound;
 import io.rsocket.rpc.frames.Metadata;
@@ -14,7 +14,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class RequestHandlingRSocket extends AbstractRSocket {
+public class RequestHandlingRSocket extends AbstractRSocket implements ResponderRSocket {
   private final ConcurrentMap<String, RSocketRpcService> registeredServices =
       new ConcurrentHashMap<>();
 
@@ -102,25 +102,50 @@ public class RequestHandlingRSocket extends AbstractRSocket {
 
   @Override
   public Flux<Payload> requestChannel(Publisher<Payload> payloads) {
-    return new SwitchTransformFlux<>(
-        payloads,
-        (payload, flux) -> {
-          try {
-            ByteBuf metadata = payload.sliceMetadata();
-            String service = Metadata.getService(metadata);
+    return Flux.from(payloads)
+        .switchOnFirst(
+            (firstSignal, flux) -> {
+              if (firstSignal.hasValue()) {
+                Payload payload = firstSignal.get();
+                try {
+                  ByteBuf metadata = payload.sliceMetadata();
+                  String service = Metadata.getService(metadata);
 
-            RSocketRpcService rsocketService = registeredServices.get(service);
+                  RSocketRpcService rsocketService = registeredServices.get(service);
 
-            if (rsocketService == null) {
-              ReferenceCountUtil.safeRelease(payload);
-              return Flux.error(new ServiceNotFound(service));
-            }
+                  if (rsocketService == null) {
+                    ReferenceCountUtil.safeRelease(payload);
+                    return Flux.error(new ServiceNotFound(service));
+                  }
 
-            return rsocketService.requestChannel(payload, flux);
-          } catch (Throwable t) {
-            ReferenceCountUtil.safeRelease(payload);
-            return Flux.error(t);
-          }
-        });
+                  return rsocketService.requestChannel(payload, flux);
+                } catch (Throwable t) {
+                  ReferenceCountUtil.safeRelease(payload);
+                  return Flux.error(t);
+                }
+              }
+
+              return flux;
+            });
+  }
+
+  @Override
+  public Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
+    try {
+      ByteBuf metadata = payload.sliceMetadata();
+      String service = Metadata.getService(metadata);
+
+      RSocketRpcService rsocketService = registeredServices.get(service);
+
+      if (rsocketService == null) {
+        ReferenceCountUtil.safeRelease(payload);
+        return Flux.error(new ServiceNotFound(service));
+      }
+
+      return rsocketService.requestChannel(payload, payloads);
+    } catch (Throwable t) {
+      ReferenceCountUtil.safeRelease(payload);
+      return Flux.error(t);
+    }
   }
 }

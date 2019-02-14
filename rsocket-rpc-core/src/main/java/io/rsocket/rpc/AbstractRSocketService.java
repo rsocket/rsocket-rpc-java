@@ -2,6 +2,7 @@ package io.rsocket.rpc;
 
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
+import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
 public abstract class AbstractRSocketService extends AbstractRSocket implements RSocketRpcService {
@@ -11,7 +12,7 @@ public abstract class AbstractRSocketService extends AbstractRSocket implements 
   }
 
   @Override
-  public Flux<Payload> requestChannel(Payload payload, Flux<Payload> publisher) {
+  public Flux<Payload> requestChannel(Payload payload, Publisher<Payload> publisher) {
     return Flux.error(new UnsupportedOperationException("Request-Channel not implemented."));
   }
 
