@@ -9,6 +9,7 @@ description = 'RSocket RPC Library'
 
 dependencies {
     implementation 'com.google.protobuf:protobuf-java'
+    implementation 'org.slf4j:slf4j-api'
 
     api 'io.opentracing:opentracing-api'
     api 'javax.inject:javax.inject'
@@ -54,6 +55,8 @@ dependencyManagement {
             entry "log4j-core"
             entry "log4j-slf4j-impl"
         }
+        
+        dependency "org.slf4j:slf4j-api:${ext['slf4j.version']}"
         dependency "org.slf4j:slf4j-simple:${ext['slf4j.version']}"
 
         dependencySet(group: 'io.rsocket', version: ext['rsocket.version']) {

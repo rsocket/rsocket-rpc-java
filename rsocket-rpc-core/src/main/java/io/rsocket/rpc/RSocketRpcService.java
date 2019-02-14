@@ -1,11 +1,7 @@
 package io.rsocket.rpc;
 
-import io.rsocket.Payload;
-import io.rsocket.RSocket;
-import reactor.core.publisher.Flux;
+import io.rsocket.ResponderRSocket;
 
-public interface RSocketRpcService extends RSocket {
+public interface RSocketRpcService extends ResponderRSocket {
   String getService();
-
-  Flux<Payload> requestChannel(Payload payload, Flux<Payload> publisher);
 }

@@ -1,8 +1,8 @@
 plugins {
-    id 'com.gradle.build-scan' version '1.16'
+    id 'com.gradle.build-scan' version '2.1'
     id 'com.google.osdetector' version '1.4.0'
-    id 'com.github.sherter.google-java-format' version '0.7.1' apply false
-    id 'com.github.johnrengelman.shadow' version '2.0.1' apply false
+    id 'com.github.sherter.google-java-format' version '0.8' apply false
+    id 'com.github.johnrengelman.shadow' version '4.0.2' apply false
     id 'com.jfrog.artifactory' version '4.7.3' apply false
     id 'com.jfrog.bintray' version '1.8.4' apply false
     id 'me.champeau.gradle.jmh' version '0.4.7' apply false
@@ -13,7 +13,10 @@ apply from: 'artifactory.gradle'
 apply from: 'bintray.gradle'
 apply from: 'publication.gradle'
 
-buildScan { licenseAgreementUrl = 'https://gradle.com/terms-of-service'; licenseAgree = 'yes' }
+buildScan {     
+    termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+    termsOfServiceAgree = 'yes'
+}
 
 subprojects {
     apply plugin: 'idea'
@@ -30,7 +33,7 @@ subprojects {
     sourceCompatibility = 1.8
     targetCompatibility = 1.8
 
-    ext['reactor-bom.version'] = 'Californium-SR1'
+    ext['reactor-bom.version'] = 'Californium-SR5'
     ext['rsocket.version'] = '0.11.16'
 
     ext['protobuf.version'] = '3.6.1'
