@@ -270,7 +270,7 @@ The RSocket RPC compiler generates a client as well as a server. The client impl
 ```java
 RSocket rSocket = RSocketFactory
 	.connect()
-	.transport(TcpClientTransport.create(8801))
+	.transport(TcpClientTransport.create(8081))
 	.start()
 	.block();
 SimpleServiceClient serviceClient = new SimpleServiceClient(rSocket);
@@ -296,7 +296,7 @@ RSocketFactory.receive()
                     }
                   });
             })
-        .transport(TcpServerTransport.create(8801))
+        .transport(TcpServerTransport.create(8081))
         .start()
         .block();
 ```
