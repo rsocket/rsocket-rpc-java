@@ -1311,7 +1311,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "@$Override$\n"
-      "public $Flux$<$Payload$> requestChannel($Payload$ payload, $Publisher$<$Payload$> publisher) {\n");
+      "public $Flux$<$Payload$> requestChannel($Payload$ payload, $Flux$<$Payload$> publisher) {\n");
   p->Indent();
   if (request_channel.empty()) {
     p->Print(
@@ -1344,7 +1344,7 @@ static void PrintServer(const ServiceDescriptor* service,
       p->Indent();
       p->Print(
           *vars,
-          "$Flux$.from(publisher).map(deserializer($input_type$.parser()));\n");
+          "publisher.map(deserializer($input_type$.parser()));\n");
       p->Outdent();
       if (method->server_streaming()) {
         p->Print(
