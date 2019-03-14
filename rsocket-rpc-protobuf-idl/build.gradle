@@ -1,13 +1,10 @@
 plugins {
-    id 'com.google.protobuf' version '0.8.6'
+    id 'com.google.protobuf' version '0.8.8'
 }
 
 description = 'RSocket RPC Protobf IDL'
 
 protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc"
-    }
     generateProtoTasks {
         all().each { task ->
             task.enabled = false
