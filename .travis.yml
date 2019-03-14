@@ -20,9 +20,12 @@ jobs:
     - LDFLAGS="/usr/local/lib/libprotobuf.a /usr/local/lib/libprotoc.a"
     before_install:
     - brew update
+    - pushd $(brew --repo)/Library/Taps/homebrew/homebrew-core
+    - git checkout 25a1892 Formula/protobuf.rb
     - EDITOR="sed -i '' 's/system \".\/configure\",/system \".\/configure\", \"--disable-shared\",/g'"
       brew edit protobuf
     - brew install protobuf
+    - popd
     script: "./ci/travis.sh"
 before_cache:
 - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
