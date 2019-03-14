@@ -5,7 +5,7 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '4.0.2' apply false
     id 'com.jfrog.artifactory' version '4.7.3' apply false
     id 'com.jfrog.bintray' version '1.8.4' apply false
-    id 'me.champeau.gradle.jmh' version '0.4.7' apply false
+    id 'me.champeau.gradle.jmh' version '0.4.8' apply false
     id 'io.morethan.jmhreport' version '0.9.0' apply false
 }
 
@@ -34,25 +34,24 @@ subprojects {
     targetCompatibility = 1.8
 
     ext['reactor-bom.version'] = 'Californium-SR5'
-    ext['rsocket.version'] = '0.11.16'
+    ext['rsocket.version'] = '0.11.18'
 
     ext['protobuf.version'] = '3.6.1'
-    ext['log4j.version'] = '2.9.0'
+    ext['log4j.version'] = '2.11.2'
     ext['slf4j.version'] = '1.8.0-beta2'
-    ext['junit.version'] = '5.1.0'
+    ext['junit.version'] = '5.4.0'
     ext['mockito.version'] = '2.23.0'
     ext['hamcrest.version'] = '1.3'
     ext['jmh.version'] = '1.21'
     ext['micrometer.version'] = '1.0.6'
     ext['assertj.version'] = '3.11.1'
     ext['opentracing.version'] = '0.31.0'
-    ext['opentracing.brave.version'] = '0.31.2'
-    ext['zipkin.sender.version'] = '2.7.6'
+    ext['opentracing.brave.version'] = '0.33.10'
+    ext['zipkin.sender.version'] = '2.8.0'
     ext['hdrhistogram.version'] = '2.1.10'
 
     repositories {
         jcenter()
-        mavenLocal()
         if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
             maven { url 'http://repo.spring.io/libs-snapshot' }
             maven { url 'https://oss.jfrog.org/oss-snapshot-local' }

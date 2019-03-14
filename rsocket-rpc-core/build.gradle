@@ -1,8 +1,8 @@
 import static org.apache.tools.ant.taskdefs.condition.Os.*
 
 plugins {
-    id 'io.spring.dependency-management' version '1.0.6.RELEASE'
-    id 'com.google.protobuf' version '0.8.6'
+    id 'io.spring.dependency-management' version '1.0.7.RELEASE'
+    id 'com.google.protobuf' version '0.8.8'
 }
 
 description = 'RSocket RPC Library'
