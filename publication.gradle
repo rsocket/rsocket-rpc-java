@@ -11,7 +11,6 @@ configure(subprojects.findAll {it.name != 'rsocket-rpc-protobuf'}) {
 	  options.with {
 		links 'https://docs.oracle.com/javase/8/docs/api/'
 		links 'https://projectreactor.io/docs/core/release/api/'
-		links 'https://netty.io/4.1/api/'
 	  }
 	}
 

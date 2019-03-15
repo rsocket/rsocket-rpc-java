@@ -1,7 +1,5 @@
 sudo: required
 jobs:
-  allow_failures:
-  - os: windows
   include:
   - stage: build
     language: cpp
@@ -17,6 +15,7 @@ jobs:
   - stage: build
     language: cpp
     os: windows
+    filter_secrets: false
     env:
     - GRADLE_OPTS="-Dorg.gradle.daemon=false"
     before_install:
@@ -35,17 +34,14 @@ jobs:
   - stage: deploy
     language: cpp
     os: osx
-    osx_image: xcode9.4
-    env:
-    - HOMEBREW_TEMP="/tmp"
-    - LDFLAGS="/usr/local/lib/libprotobuf.a /usr/local/lib/libprotoc.a"
+    osx_image: xcode10.1
+    compiler: clang
     before_install:
-    - brew update
-    - pushd $(brew --repo)/Library/Taps/homebrew/homebrew-core
-    - git checkout 25a1892 Formula/protobuf.rb
-    - EDITOR="sed -i '' 's/system \".\/configure\",/system \".\/configure\", \"--disable-shared\",/g'"
-      brew edit protobuf
-    - brew install protobuf
+    - curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
+    - tar -xzf protobuf-cpp-3.6.1.tar.gz
+    - pushd protobuf-3.6.1
+    - ./autogen.sh
+    - ./configure --disable-shared && make && sudo make install
     - popd
     script: "./ci/travis.sh"
 before_cache:
