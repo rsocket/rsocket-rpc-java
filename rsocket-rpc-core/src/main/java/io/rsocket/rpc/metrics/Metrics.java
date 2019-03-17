@@ -50,7 +50,7 @@ public class Metrics {
             }
           } else {
             if (subscriber instanceof Fuseable.ConditionalSubscriber) {
-              return new MetricsFuseableConditionalSubscriber<>(
+              return new MetricsConditionalSubscriber<>(
                   (Fuseable.ConditionalSubscriber<? super T>) subscriber,
                   next,
                   complete,
