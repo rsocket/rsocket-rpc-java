@@ -2,7 +2,7 @@ import static org.apache.tools.ant.taskdefs.condition.Os.*
 
 plugins {
     id 'io.spring.dependency-management' version '1.0.7.RELEASE'
-    id 'com.google.protobuf' version '0.8.8'
+    id 'com.google.protobuf' version '0.8.10'
 }
 
 description = 'RSocket RPC Library'
@@ -107,8 +107,6 @@ if(isFamily(FAMILY_WINDOWS)){
 }
 
 protobuf {
-    generatedFilesBaseDir = "${projectDir}/src/generated"
-
     protoc {
         artifact = "com.google.protobuf:protoc"
     }
@@ -130,8 +128,4 @@ protobuf {
             }
         }
     }
-}
-
-clean {
-    delete protobuf.generatedFilesBaseDir
 }
