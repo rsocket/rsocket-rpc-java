@@ -7,6 +7,7 @@ plugins {
     id 'com.jfrog.bintray' version '1.8.4' apply false
     id 'me.champeau.gradle.jmh' version '0.4.8' apply false
     id 'io.morethan.jmhreport' version '0.9.0' apply false
+    id 'com.google.protobuf' version '0.8.10' apply false
 }
 
 apply from: 'artifactory.gradle'
@@ -33,8 +34,8 @@ subprojects {
     sourceCompatibility = 1.8
     targetCompatibility = 1.8
 
-    ext['reactor-bom.version'] = 'Californium-SR5'
-    ext['rsocket.version'] = '0.12.2-RC2'
+    ext['reactor-bom.version'] = 'Dysprosium-M3'
+    ext['rsocket.version'] = '1.0.0-RC2'
 
     ext['protobuf.version'] = '3.6.1'
     ext['log4j.version'] = '2.11.2'
@@ -52,6 +53,7 @@ subprojects {
 
     repositories {
         jcenter()
+        maven { url 'https://repo.spring.io/milestone' }
         if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
             maven { url 'http://repo.spring.io/libs-snapshot' }
             maven { url 'https://oss.jfrog.org/oss-snapshot-local' }
