@@ -1,0 +1,93 @@
+plugins {
+    id 'io.spring.dependency-management' version '1.0.7.RELEASE'
+}
+
+description = 'RSocket IPC Jackson Support'
+
+dependencies {
+    api project (':rsocket-ipc-core')
+    
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.9.9'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.9'
+    implementation 'com.fasterxml.jackson.module:jackson-module-afterburner:2.9.9'
+    compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:2.9.9'
+
+    testImplementation 'io.opentracing.brave:brave-opentracing'
+    testImplementation 'junit:junit'
+
+    testImplementation 'javax.inject:javax.inject'
+    testImplementation 'io.projectreactor:reactor-test'
+    testImplementation 'com.google.protobuf:protobuf-java'
+    testImplementation 'org.hdrhistogram:HdrHistogram'
+    testImplementation 'org.apache.logging.log4j:log4j-api'
+    testImplementation 'org.apache.logging.log4j:log4j-core'
+    testImplementation 'org.apache.logging.log4j:log4j-slf4j-impl'
+    testImplementation 'io.rsocket:rsocket-transport-netty'
+    testImplementation 'io.rsocket:rsocket-transport-local'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'io.zipkin.reporter2:zipkin-sender-okhttp3'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "io.projectreactor:reactor-bom:${ext['reactor-bom.version']}"
+    }
+
+    dependencies {
+        dependencySet(group: 'com.google.protobuf', version: ext['protobuf.version']) {
+            entry 'protobuf-java'
+            entry 'protoc'
+        }
+        dependency "com.google.protobuf:protoc:${ext['protobuf.version']}"
+
+        dependency "javax.inject:javax.inject:1"
+        dependency "javax.annotation:javax.annotation-api:1.2"
+
+        dependencySet(group: 'org.apache.logging.log4j', version: ext['log4j.version']) {
+            entry "log4j-api"
+            entry "log4j-core"
+            entry "log4j-slf4j-impl"
+        }
+
+        dependency "org.slf4j:slf4j-api:${ext['slf4j.version']}"
+        dependency "org.slf4j:slf4j-simple:${ext['slf4j.version']}"
+
+        dependencySet(group: 'io.rsocket', version: ext['rsocket.version']) {
+            entry 'rsocket-core'
+            entry 'rsocket-transport-netty'
+            entry 'rsocket-transport-local'
+        }
+
+        dependency "io.micrometer:micrometer-core:${ext['micrometer.version']}"
+        dependency "io.opentracing:opentracing-api:${ext['opentracing.version']}"
+        dependency "io.opentracing.brave:brave-opentracing:${ext['opentracing.brave.version']}"
+        dependency "io.zipkin.reporter2:zipkin-sender-okhttp3:${ext['zipkin.sender.version']}"
+
+        // TODO: Remove after JUnit5 migration
+        // TEST DEPENDENCIES
+
+        dependency 'junit:junit:4.12'
+
+        dependencySet(group: 'org.junit.jupiter', version: ext['junit.version']) {
+            entry 'junit-jupiter-api'
+            entry 'junit-jupiter-engine'
+            entry 'junit-jupiter-params'
+        }
+
+
+        dependency "org.mockito:mockito-core:${ext['mockito.version']}"
+        dependency "org.hamcrest:hamcrest-library:${ext['hamcrest.version']}"
+        dependency "org.assertj:assertj-core:${ext['assertj.version']}"
+        dependency "org.hdrhistogram:HdrHistogram:${ext['hdrhistogram.version']}"
+
+
+        dependencySet(group: 'org.junit.vintage', version: ext['junit.version']) {
+            entry 'junit-vintage-engine'
+        }
+
+        dependencySet(group: 'org.openjdk.jmh', version: ext['jmh.version']) {
+            entry 'jmh-core'
+            entry 'jmh-generator-annprocess'
+        }
+    }
+}
