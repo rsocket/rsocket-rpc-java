@@ -7,7 +7,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
 import io.rsocket.ipc.Marshaller;
-import io.rsocket.ipc.Unmarsaller;
+import io.rsocket.ipc.Unmarshaller;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -43,7 +43,7 @@ public class Cbor {
     };
   }
 
-  public static <T> Unmarsaller<T> unmarshaller(Class<T> clazz) {
+  public static <T> Unmarshaller<T> unmarshaller(Class<T> clazz) {
     return byteBuf -> {
       InputStream bis = new ByteBufInputStream(byteBuf);
       try {

@@ -18,7 +18,7 @@ package io.rsocket.ipc.marshallers;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.rsocket.ipc.Marshaller;
-import io.rsocket.ipc.Unmarsaller;
+import io.rsocket.ipc.Unmarshaller;
 
 public final class Primitives {
   private Primitives() {}
@@ -27,7 +27,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeByte(value);
   }
 
-  public static Unmarsaller<Byte> byteUnmarsaller() {
+  public static Unmarshaller<Byte> byteUnmarsaller() {
     return ByteBuf::readByte;
   }
 
@@ -35,7 +35,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeShort(value);
   }
 
-  public static Unmarsaller<Short> shortUnmarsaller() {
+  public static Unmarshaller<Short> shortUnmarsaller() {
     return ByteBuf::readShort;
   }
 
@@ -43,7 +43,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeInt(value);
   }
 
-  public static Unmarsaller<Integer> intUnmarsaller() {
+  public static Unmarshaller<Integer> intUnmarsaller() {
     return ByteBuf::readInt;
   }
 
@@ -51,7 +51,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeChar(value);
   }
 
-  public static Unmarsaller<Character> charUnmarsaller() {
+  public static Unmarshaller<Character> charUnmarsaller() {
     return ByteBuf::readChar;
   }
 
@@ -59,7 +59,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeLong(value);
   }
 
-  public static Unmarsaller<Long> longUnmarsaller() {
+  public static Unmarshaller<Long> longUnmarsaller() {
     return ByteBuf::readLong;
   }
 
@@ -67,7 +67,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeFloat(value);
   }
 
-  public static Unmarsaller<Float> floatUnmarsaller() {
+  public static Unmarshaller<Float> floatUnmarsaller() {
     return ByteBuf::readFloat;
   }
 
@@ -75,7 +75,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeDouble(value);
   }
 
-  public static Unmarsaller<Double> doubleUnmarsaller() {
+  public static Unmarshaller<Double> doubleUnmarsaller() {
     return ByteBuf::readDouble;
   }
 }

@@ -18,7 +18,7 @@ package io.rsocket.ipc.marshallers;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.rsocket.ipc.Marshaller;
-import io.rsocket.ipc.Unmarsaller;
+import io.rsocket.ipc.Unmarshaller;
 import java.nio.charset.StandardCharsets;
 
 public final class Strings {
@@ -28,7 +28,7 @@ public final class Strings {
     return s -> ByteBufUtil.writeUtf8(ByteBufAllocator.DEFAULT, s);
   }
 
-  public static Unmarsaller<String> unmarshaller() {
+  public static Unmarshaller<String> unmarshaller() {
     return byteBuf -> byteBuf.toString(StandardCharsets.UTF_8);
   }
 }

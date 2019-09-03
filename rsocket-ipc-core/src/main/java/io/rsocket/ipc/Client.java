@@ -31,13 +31,13 @@ public final class Client<I, O> {
 
   private final String service;
   private final Marshaller<I> marshaller;
-  private final Unmarsaller<O> unmarshaller;
+  private final Unmarshaller<O> unmarshaller;
   private final RSocket rSocket;
 
   private Client(
       final String service,
       final Marshaller marshaller,
-      final Unmarsaller unmarshaller,
+      final Unmarshaller unmarshaller,
       final RSocket rSocket) {
     this.service = service;
     this.marshaller = marshaller;
@@ -54,7 +54,7 @@ public final class Client<I, O> {
   }
 
   public interface U<I> {
-    <O> Client<I, O> unmarshall(Unmarsaller<O> unmarshaller);
+    <O> Client<I, O> unmarshall(Unmarshaller<O> unmarshaller);
   }
 
   public Functions.RequestResponse<I, O> requestResponse(String route) {
@@ -91,7 +91,7 @@ public final class Client<I, O> {
   private static class Builder implements P, U, R {
     private final String service;
     private Marshaller marshaller;
-    private Unmarsaller unmarshaller;
+    private Unmarshaller unmarshaller;
     private RSocket rSocket;
 
     private Builder(String service) {
@@ -106,7 +106,7 @@ public final class Client<I, O> {
     }
 
     @Override
-    public Client unmarshall(Unmarsaller unmarshaller) {
+    public Client unmarshall(Unmarshaller unmarshaller) {
       Objects.requireNonNull(unmarshaller);
       this.unmarshaller = unmarshaller;
       return new Client(service, marshaller, unmarshaller, rSocket);
@@ -143,7 +143,7 @@ public final class Client<I, O> {
       final String route,
       final RSocket r,
       final Marshaller<I> marshaller,
-      final Unmarsaller<O> unmarsaller,
+      final Unmarshaller<O> unmarshaller,
       final I o,
       final ByteBuf metadata) {
     try {
@@ -155,7 +155,7 @@ public final class Client<I, O> {
           .map(
               p -> {
                 try {
-                  return unmarsaller.apply(p.sliceData());
+                  return unmarshaller.apply(p.sliceData());
                 } finally {
                   p.release();
                 }
@@ -170,7 +170,7 @@ public final class Client<I, O> {
       final String route,
       final RSocket r,
       final Marshaller<I> marshaller,
-      final Unmarsaller<O> unmarsaller,
+      final Unmarshaller<O> unmarshaller,
       final I o,
       final ByteBuf metadata) {
     try {
@@ -182,7 +182,7 @@ public final class Client<I, O> {
           .map(
               p -> {
                 try {
-                  return unmarsaller.apply(p.sliceData());
+                  return unmarshaller.apply(p.sliceData());
                 } finally {
                   p.release();
                 }
@@ -197,7 +197,7 @@ public final class Client<I, O> {
       final String route,
       final RSocket r,
       final Marshaller<I> marshaller,
-      final Unmarsaller<O> unmarsaller,
+      final Unmarshaller<O> unmarshaller,
       final Publisher<I> pub,
       final ByteBuf metadata) {
     try {
@@ -215,7 +215,7 @@ public final class Client<I, O> {
           .map(
               p -> {
                 try {
-                  return unmarsaller.apply(p.sliceData());
+                  return unmarshaller.apply(p.sliceData());
                 } finally {
                   p.release();
                 }

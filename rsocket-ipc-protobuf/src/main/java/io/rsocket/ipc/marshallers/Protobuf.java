@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufOutputStream;
 import io.rsocket.ipc.Marshaller;
-import io.rsocket.ipc.Unmarsaller;
+import io.rsocket.ipc.Unmarshaller;
 import java.util.function.Function;
 import reactor.core.Exceptions;
 
@@ -24,7 +24,7 @@ public class Protobuf {
     };
   }
 
-  public static <T extends Message> Unmarsaller<T> unmarshaller(Function<ByteBuf, T> f) {
+  public static <T extends Message> Unmarshaller<T> unmarshaller(Function<ByteBuf, T> f) {
     return f::apply;
   }
 }

@@ -33,7 +33,7 @@ public final class Server {
   }
 
   public interface U<I> {
-    <O> H<I, O> unmarshall(Unmarsaller<O> unmarshaller);
+    <O> H<I, O> unmarshall(Unmarshaller<O> unmarshaller);
   }
 
   public interface H<I, O> {
@@ -52,7 +52,7 @@ public final class Server {
   private static class Builder implements P, U, H {
     private final String service;
     private Marshaller marshaller;
-    private Unmarsaller unmarshaller;
+    private Unmarshaller unmarshaller;
     private final Map<String, BiFunction<Object, ByteBuf, Mono>> rr;
     private final Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc;
     private final Map<String, BiFunction<Object, ByteBuf, Flux>> rs;
@@ -74,7 +74,7 @@ public final class Server {
     }
 
     @Override
-    public H unmarshall(Unmarsaller unmarshaller) {
+    public H unmarshall(Unmarshaller unmarshaller) {
       Objects.requireNonNull(unmarshaller);
       this.unmarshaller = unmarshaller;
       return this;

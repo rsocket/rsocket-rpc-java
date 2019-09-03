@@ -18,7 +18,7 @@ package io.rsocket.ipc.marshallers;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.rsocket.ipc.Marshaller;
-import io.rsocket.ipc.Unmarsaller;
+import io.rsocket.ipc.Unmarshaller;
 import java.nio.ByteBuffer;
 
 public final class Bytes {
@@ -28,7 +28,7 @@ public final class Bytes {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeBytes(value);
   }
 
-  public static Unmarsaller<ByteBuffer> byteBufferUnmarsaller() {
+  public static Unmarshaller<ByteBuffer> byteBufferUnmarsaller() {
     return ByteBuf::nioBuffer;
   }
 
@@ -36,7 +36,7 @@ public final class Bytes {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeBytes(value);
   }
 
-  public static Unmarsaller<byte[]> byteArrayUnmarsaller() {
+  public static Unmarshaller<byte[]> byteArrayUnmarsaller() {
     return value -> {
       byte[] b = new byte[value.readableBytes()];
       value.writeBytes(b);
@@ -48,7 +48,7 @@ public final class Bytes {
     return byteBuf -> byteBuf;
   }
 
-  public static Unmarsaller<ByteBuf> byteBufUnmarsaller() {
+  public static Unmarshaller<ByteBuf> byteBufUnmarsaller() {
     return byteBuf -> byteBuf;
   }
 }

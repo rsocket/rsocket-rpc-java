@@ -18,7 +18,7 @@ package io.rsocket.ipc;
 import io.netty.buffer.ByteBuf;
 import java.util.function.Function;
 
-public interface Unmarsaller<T> extends Function<ByteBuf, T> {
+public interface Unmarshaller<T> extends Function<ByteBuf, T> {
   @Override
   T apply(ByteBuf byteBuf);
 }

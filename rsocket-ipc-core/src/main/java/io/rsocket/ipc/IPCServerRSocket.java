@@ -31,7 +31,7 @@ import reactor.core.publisher.Mono;
 class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
   private final String service;
   private final Marshaller marshaller;
-  private final Unmarsaller unmarshaller;
+  private final Unmarshaller unmarshaller;
 
   private final Map<String, BiFunction<Object, ByteBuf, Mono>> rr;
   private final Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc;
@@ -41,7 +41,7 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
   IPCServerRSocket(
       String service,
       Marshaller marshaller,
-      Unmarsaller unmarshaller,
+      Unmarshaller unmarshaller,
       Map<String, BiFunction<Object, ByteBuf, Mono>> rr,
       Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc,
       Map<String, BiFunction<Object, ByteBuf, Flux>> rs,
