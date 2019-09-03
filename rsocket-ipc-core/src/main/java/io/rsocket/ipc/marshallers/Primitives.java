@@ -27,7 +27,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeByte(value);
   }
 
-  public static Unmarshaller<Byte> byteUnmarsaller() {
+  public static Unmarshaller<Byte> byteUnmarshaller() {
     return ByteBuf::readByte;
   }
 
@@ -35,7 +35,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeShort(value);
   }
 
-  public static Unmarshaller<Short> shortUnmarsaller() {
+  public static Unmarshaller<Short> shortUnmarshaller() {
     return ByteBuf::readShort;
   }
 
@@ -43,7 +43,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeInt(value);
   }
 
-  public static Unmarshaller<Integer> intUnmarsaller() {
+  public static Unmarshaller<Integer> intUnmarshaller() {
     return ByteBuf::readInt;
   }
 
@@ -51,7 +51,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeChar(value);
   }
 
-  public static Unmarshaller<Character> charUnmarsaller() {
+  public static Unmarshaller<Character> charUnmarshaller() {
     return ByteBuf::readChar;
   }
 
@@ -59,7 +59,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeLong(value);
   }
 
-  public static Unmarshaller<Long> longUnmarsaller() {
+  public static Unmarshaller<Long> longUnmarshaller() {
     return ByteBuf::readLong;
   }
 
@@ -67,7 +67,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeFloat(value);
   }
 
-  public static Unmarshaller<Float> floatUnmarsaller() {
+  public static Unmarshaller<Float> floatUnmarshaller() {
     return ByteBuf::readFloat;
   }
 
@@ -75,7 +75,7 @@ public final class Primitives {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeDouble(value);
   }
 
-  public static Unmarshaller<Double> doubleUnmarsaller() {
+  public static Unmarshaller<Double> doubleUnmarshaller() {
     return ByteBuf::readDouble;
   }
 }

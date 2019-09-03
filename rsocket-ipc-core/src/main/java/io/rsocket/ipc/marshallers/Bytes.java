@@ -28,7 +28,7 @@ public final class Bytes {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeBytes(value);
   }
 
-  public static Unmarshaller<ByteBuffer> byteBufferUnmarsaller() {
+  public static Unmarshaller<ByteBuffer> byteBufferUnmarshaller() {
     return ByteBuf::nioBuffer;
   }
 
@@ -36,7 +36,7 @@ public final class Bytes {
     return value -> ByteBufAllocator.DEFAULT.buffer().writeBytes(value);
   }
 
-  public static Unmarshaller<byte[]> byteArrayUnmarsaller() {
+  public static Unmarshaller<byte[]> byteArrayUnmarshaller() {
     return value -> {
       byte[] b = new byte[value.readableBytes()];
       value.writeBytes(b);
@@ -48,7 +48,7 @@ public final class Bytes {
     return byteBuf -> byteBuf;
   }
 
-  public static Unmarshaller<ByteBuf> byteBufUnmarsaller() {
+  public static Unmarshaller<ByteBuf> byteBufUnmarshaller() {
     return byteBuf -> byteBuf;
   }
 }
