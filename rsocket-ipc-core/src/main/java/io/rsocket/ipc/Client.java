@@ -58,33 +58,25 @@ public final class Client<I, O> {
   }
 
   public Functions.RequestResponse<I, O> requestResponse(String route) {
-    Objects.requireNonNull(marshaller);
-    Objects.requireNonNull(unmarshaller);
-    Objects.requireNonNull(rSocket);
+    Objects.requireNonNull(route);
     return (o, byteBuf) ->
         doRequestResponse(service, route, rSocket, marshaller, unmarshaller, o, byteBuf);
   }
 
   public Functions.RequestChannel<I, O> requestChannel(String route) {
-    Objects.requireNonNull(marshaller);
-    Objects.requireNonNull(unmarshaller);
-    Objects.requireNonNull(rSocket);
+    Objects.requireNonNull(route);
     return (publisher, byteBuf) ->
         doRequestChannel(service, route, rSocket, marshaller, unmarshaller, publisher, byteBuf);
   }
 
   public Functions.RequestStream<I, O> requestStream(String route) {
-    Objects.requireNonNull(marshaller);
-    Objects.requireNonNull(unmarshaller);
-    Objects.requireNonNull(rSocket);
+    Objects.requireNonNull(route);
     return (o, byteBuf) ->
         doRequestStream(service, route, rSocket, marshaller, unmarshaller, o, byteBuf);
   }
 
   public Functions.FireAndForget<I> fireAndForget(String route) {
-    Objects.requireNonNull(marshaller);
-    Objects.requireNonNull(unmarshaller);
-    Objects.requireNonNull(rSocket);
+    Objects.requireNonNull(route);
     return (o, byteBuf) -> doFireAndForget(service, route, rSocket, marshaller, o, byteBuf);
   }
 
@@ -100,22 +92,19 @@ public final class Client<I, O> {
 
     @Override
     public <I> U<I> marshall(Marshaller<I> marshaller) {
-      Objects.requireNonNull(marshaller);
-      this.marshaller = marshaller;
+      this.marshaller = Objects.requireNonNull(marshaller);
       return this;
     }
 
     @Override
     public Client unmarshall(Unmarshaller unmarshaller) {
-      Objects.requireNonNull(unmarshaller);
-      this.unmarshaller = unmarshaller;
+      this.unmarshaller = Objects.requireNonNull(unmarshaller);
       return new Client(service, marshaller, unmarshaller, rSocket);
     }
 
     @Override
     public P rsocket(RSocket rSocket) {
-      Objects.requireNonNull(rSocket);
-      this.rSocket = rSocket;
+      this.rSocket = Objects.requireNonNull(rSocket);
       return this;
     }
   }
@@ -227,7 +216,6 @@ public final class Client<I, O> {
   }
 
   public static R service(String service) {
-    Objects.requireNonNull(service);
-    return new Builder(service);
+    return new Builder(Objects.requireNonNull(service));
   }
 }

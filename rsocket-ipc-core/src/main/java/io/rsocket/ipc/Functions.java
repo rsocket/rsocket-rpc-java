@@ -27,7 +27,7 @@ public final class Functions {
   private Functions() {}
 
   @FunctionalInterface
-  interface RequestResponse<I, O> extends BiFunction<I, ByteBuf, Mono<O>> {
+  public interface RequestResponse<I, O> extends BiFunction<I, ByteBuf, Mono<O>> {
     @Override
     Mono<O> apply(I i, ByteBuf byteBuf);
 
@@ -37,7 +37,7 @@ public final class Functions {
   }
 
   @FunctionalInterface
-  interface RequestStream<I, O> extends BiFunction<I, ByteBuf, Flux<O>> {
+  public interface RequestStream<I, O> extends BiFunction<I, ByteBuf, Flux<O>> {
     @Override
     Flux<O> apply(I i, ByteBuf byteBuf);
 
@@ -47,7 +47,8 @@ public final class Functions {
   }
 
   @FunctionalInterface
-  interface HandleRequestHandle<I, O> extends TriFunction<I, Publisher<I>, ByteBuf, Flux<O>> {
+  public interface HandleRequestHandle<I, O>
+      extends TriFunction<I, Publisher<I>, ByteBuf, Flux<O>> {
     @Override
     Flux<O> apply(I i, Publisher<I> publisher, ByteBuf byteBuf);
 
@@ -57,7 +58,7 @@ public final class Functions {
   }
 
   @FunctionalInterface
-  interface RequestChannel<I, O> extends BiFunction<Publisher<I>, ByteBuf, Flux<O>> {
+  public interface RequestChannel<I, O> extends BiFunction<Publisher<I>, ByteBuf, Flux<O>> {
     @Override
     Flux<O> apply(Publisher<I> publisher, ByteBuf byteBuf);
 
@@ -67,7 +68,7 @@ public final class Functions {
   }
 
   @FunctionalInterface
-  interface FireAndForget<I> extends BiFunction<I, ByteBuf, Mono<Void>> {
+  public interface FireAndForget<I> extends BiFunction<I, ByteBuf, Mono<Void>> {
     @Override
     Mono<Void> apply(I i, ByteBuf byteBuf);
 

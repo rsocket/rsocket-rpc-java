@@ -68,15 +68,13 @@ public final class Server {
 
     @Override
     public <I> U<I> marshall(Marshaller<I> marshaller) {
-      Objects.requireNonNull(marshaller);
-      this.marshaller = marshaller;
+      this.marshaller = Objects.requireNonNull(marshaller);
       return this;
     }
 
     @Override
     public H unmarshall(Unmarshaller unmarshaller) {
-      Objects.requireNonNull(unmarshaller);
-      this.unmarshaller = unmarshaller;
+      this.unmarshaller = Objects.requireNonNull(unmarshaller);
       return this;
     }
 
@@ -110,8 +108,6 @@ public final class Server {
 
     @Override
     public IPCRSocket rsocket() {
-      Objects.requireNonNull(marshaller);
-      Objects.requireNonNull(unmarshaller);
       return new IPCServerRSocket(service, marshaller, unmarshaller, rr, rc, rs, ff);
     }
   }
