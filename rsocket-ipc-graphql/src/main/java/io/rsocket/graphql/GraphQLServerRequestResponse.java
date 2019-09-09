@@ -1,10 +1,7 @@
 package io.rsocket.graphql;
 
-import graphql.ExecutionInput;
 import graphql.ExecutionResult;
-import graphql.GraphQL;
 import graphql.GraphQLError;
-import graphql.execution.ExecutionId;
 import graphql.execution.instrumentation.Instrumentation;
 import graphql.schema.GraphQLSchema;
 import io.netty.buffer.ByteBuf;
@@ -31,25 +28,8 @@ class GraphQLServerRequestResponse implements Functions.RequestResponse<GraphQLR
   @Override
   public Mono<Object> apply(GraphQLRequest request, ByteBuf byteBuf) {
     try {
-      ExecutionInput.Builder builder =
-          ExecutionInput.newExecutionInput()
-              .query(request.getQuery())
-              .operationName(request.getOperationName())
-              .variables(request.getVariables())
-              .context(byteBuf)
-              .executionId(ExecutionId.generate());
-
-      if (registry != null) {
-        builder.dataLoaderRegistry(registry);
-      }
-
-      ExecutionInput executionInput = builder.build();
-
       CompletableFuture<ExecutionResult> result =
-          GraphQL.newGraphQL(graphQLSchema)
-              .instrumentation(instrumentation)
-              .build()
-              .executeAsync(executionInput);
+          Util.executeGraphQLRequest(request, byteBuf, registry, graphQLSchema, instrumentation);
 
       return Mono.fromFuture(result)
           .flatMap(
@@ -71,14 +51,7 @@ class GraphQLServerRequestResponse implements Functions.RequestResponse<GraphQLR
                 }
 
                 if (r instanceof Publisher) {
-                  if (r instanceof Mono) {
-                    return (Mono) r;
-
-                  } else {
-                    return Mono.error(
-                        new IllegalStateException(
-                            "if data is a publisher it must be assignable to a mono for request/reply interactions"));
-                  }
+                  return Mono.from((Publisher) r);
                 } else {
                   return Mono.just(r);
                 }

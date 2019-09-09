@@ -1,10 +1,7 @@
 package io.rsocket.graphql;
 
-import graphql.ExecutionInput;
 import graphql.ExecutionResult;
-import graphql.GraphQL;
 import graphql.GraphQLError;
-import graphql.execution.ExecutionId;
 import graphql.execution.instrumentation.Instrumentation;
 import graphql.schema.GraphQLSchema;
 import io.netty.buffer.ByteBuf;
@@ -32,25 +29,9 @@ class GraphQLServerRequestStream implements Functions.RequestStream<GraphQLReque
   @Override
   public Flux<Object> apply(GraphQLRequest request, ByteBuf byteBuf) {
     try {
-      ExecutionInput.Builder builder =
-          ExecutionInput.newExecutionInput()
-              .query(request.getQuery())
-              .operationName(request.getOperationName())
-              .variables(request.getVariables())
-              .context(byteBuf)
-              .executionId(ExecutionId.generate());
-
-      if (registry != null) {
-        builder.dataLoaderRegistry(registry);
-      }
-
-      ExecutionInput executionInput = builder.build();
 
       CompletableFuture<ExecutionResult> result =
-          GraphQL.newGraphQL(graphQLSchema)
-              .instrumentation(instrumentation)
-              .build()
-              .executeAsync(executionInput);
+          Util.executeGraphQLRequest(request, byteBuf, registry, graphQLSchema, instrumentation);
 
       return Mono.fromFuture(result)
           .flatMapMany(

@@ -2,7 +2,6 @@ package io.rsocket.graphql;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import graphql.schema.DataFetcher;
-import java.awt.print.Book;
 import java.util.HashMap;
 import java.util.Map;
 

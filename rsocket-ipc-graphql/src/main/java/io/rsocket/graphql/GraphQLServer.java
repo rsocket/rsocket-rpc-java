@@ -49,7 +49,7 @@ public final class GraphQLServer {
     IPCRSocket rsocket();
   }
 
-  private static class Builder implements P, U, D, I, S, R, T {
+  private static class Builder implements D, I, S, R, U, P, T {
     private final String service;
     private Unmarshaller<GraphQLRequest> unmarshaller;
     private Marshaller marshaller;
