@@ -18,9 +18,9 @@ import io.rsocket.ipc.marshallers.Json;
 import io.rsocket.rpc.rsocket.RequestHandlingRSocket;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URL;
-import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -106,7 +106,7 @@ public class GraphQLIntegrationTest {
 
     URL resource = Thread.currentThread().getContextClassLoader().getResource("schema.graphqls");
     Path path = Paths.get(resource.toURI());
-    String s = Files.readString(path);
+    String s = read(path);
 
     TypeDefinitionRegistry registry = schemaParser.parse(s);
 
@@ -121,5 +121,22 @@ public class GraphQLIntegrationTest {
             .build();
 
     return schemaGenerator.makeExecutableSchema(registry, wiring);
+  }
+
+  private static String read(Path path) {
+    try {
+      File file = path.toFile();
+      FileInputStream fis = new FileInputStream(file);
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+
+      int b = 0;
+      while ((b = fis.read()) != -1) {
+        bos.write(b);
+      }
+
+      return new String(bos.toByteArray(), StandardCharsets.UTF_8);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
