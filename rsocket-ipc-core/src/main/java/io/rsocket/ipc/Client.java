@@ -15,13 +15,21 @@
  */
 package io.rsocket.ipc;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.opentracing.Tracer;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.rpc.frames.Metadata;
+import io.rsocket.rpc.metrics.Metrics;
+import io.rsocket.rpc.tracing.Tag;
+import io.rsocket.rpc.tracing.Tracing;
 import io.rsocket.util.ByteBufPayload;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -33,20 +41,38 @@ public final class Client<I, O> {
   private final Marshaller<I> marshaller;
   private final Unmarshaller<O> unmarshaller;
   private final RSocket rSocket;
+  private final MeterRegistry meterRegistry;
+  private final Tracer tracer;
 
   private Client(
       final String service,
       final Marshaller marshaller,
       final Unmarshaller unmarshaller,
-      final RSocket rSocket) {
+      final RSocket rSocket,
+      final MeterRegistry meterRegistry,
+      final Tracer tracer) {
     this.service = service;
     this.marshaller = marshaller;
     this.unmarshaller = unmarshaller;
     this.rSocket = rSocket;
+    this.meterRegistry = meterRegistry;
+    this.tracer = tracer;
   }
 
   public interface R {
-    P rsocket(RSocket rSocket);
+    M rsocket(RSocket rSocket);
+  }
+
+  public interface M {
+    T noMeterRegistry();
+
+    T meterRegistry(MeterRegistry registry);
+  }
+
+  public interface T {
+    P noTracer();
+
+    P tracer(Tracer tracer);
   }
 
   public interface P {
@@ -57,33 +83,77 @@ public final class Client<I, O> {
     <O> Client<I, O> unmarshall(Unmarshaller<O> unmarshaller);
   }
 
+  private <O> Function<? super Publisher<O>, ? extends Publisher<O>> metrics(String route) {
+    return meterRegistry == null
+        ? Function.identity()
+        : Metrics.timed(meterRegistry, "rsocket.client", "service", service, "method", route);
+  }
+
+  private <O>
+      Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>> tracing(
+          String route) {
+    return tracer == null
+        ? Tracing.trace()
+        : Tracing.trace(
+            tracer,
+            route,
+            Tag.of("rsocket.service", service),
+            Tag.of("rsocket.rpc.role", "client"),
+            Tag.of("rsocket.rpc.version", ""));
+  }
+
   public Functions.RequestResponse<I, O> requestResponse(String route) {
     Objects.requireNonNull(route);
+    Function<? super Publisher<O>, ? extends Publisher<O>> metrics = metrics(route);
+    Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>> tracing =
+        tracing(route);
     return (o, byteBuf) ->
-        doRequestResponse(service, route, rSocket, marshaller, unmarshaller, o, byteBuf);
+        doRequestResponse(
+            service, route, rSocket, marshaller, unmarshaller, o, byteBuf, metrics, tracing);
   }
 
   public Functions.RequestChannel<I, O> requestChannel(String route) {
     Objects.requireNonNull(route);
+    Function<? super Publisher<O>, ? extends Publisher<O>> metrics = metrics(route);
+    Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>> tracing =
+        tracing(route);
     return (publisher, byteBuf) ->
-        doRequestChannel(service, route, rSocket, marshaller, unmarshaller, publisher, byteBuf);
+        doRequestChannel(
+            service,
+            route,
+            rSocket,
+            marshaller,
+            unmarshaller,
+            publisher,
+            byteBuf,
+            metrics,
+            tracing);
   }
 
   public Functions.RequestStream<I, O> requestStream(String route) {
     Objects.requireNonNull(route);
+    Function<? super Publisher<O>, ? extends Publisher<O>> metrics = metrics(route);
+    Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>> tracing =
+        tracing(route);
     return (o, byteBuf) ->
-        doRequestStream(service, route, rSocket, marshaller, unmarshaller, o, byteBuf);
+        doRequestStream(
+            service, route, rSocket, marshaller, unmarshaller, o, byteBuf, metrics, tracing);
   }
 
   public Functions.FireAndForget<I> fireAndForget(String route) {
     Objects.requireNonNull(route);
-    return (o, byteBuf) -> doFireAndForget(service, route, rSocket, marshaller, o, byteBuf);
+    Function<? super Publisher<Void>, ? extends Publisher<Void>> metrics = metrics(route);
+    Function<Map<String, String>, Function<? super Publisher<Void>, ? extends Publisher<Void>>>
+        tracing = tracing(route);
+    return (o, byteBuf) ->
+        doFireAndForget(service, route, rSocket, marshaller, o, byteBuf, metrics, tracing);
   }
 
-  private static class Builder implements P, U, R {
+  private static class Builder implements P, U, R, M, T {
     private final String service;
     private Marshaller marshaller;
-    private Unmarshaller unmarshaller;
+    private MeterRegistry meterRegistry;
+    private Tracer tracer;
     private RSocket rSocket;
 
     private Builder(String service) {
@@ -98,13 +168,35 @@ public final class Client<I, O> {
 
     @Override
     public Client unmarshall(Unmarshaller unmarshaller) {
-      this.unmarshaller = Objects.requireNonNull(unmarshaller);
-      return new Client(service, marshaller, unmarshaller, rSocket);
+      Objects.requireNonNull(unmarshaller);
+      return new Client(service, marshaller, unmarshaller, rSocket, meterRegistry, tracer);
     }
 
     @Override
-    public P rsocket(RSocket rSocket) {
+    public M rsocket(RSocket rSocket) {
       this.rSocket = Objects.requireNonNull(rSocket);
+      return this;
+    }
+
+    @Override
+    public T noMeterRegistry() {
+      return this;
+    }
+
+    @Override
+    public T meterRegistry(MeterRegistry meterRegistry) {
+      this.meterRegistry = meterRegistry;
+      return this;
+    }
+
+    @Override
+    public P noTracer() {
+      return this;
+    }
+
+    @Override
+    public P tracer(Tracer tracer) {
+      this.tracer = tracer;
       return this;
     }
   }
@@ -115,13 +207,18 @@ public final class Client<I, O> {
       final RSocket r,
       final Marshaller<I> marshaller,
       final I o,
-      final ByteBuf metadata) {
+      final ByteBuf metadata,
+      Function<? super Publisher<Void>, ? extends Publisher<Void>> metrics,
+      Function<Map<String, String>, Function<? super Publisher<Void>, ? extends Publisher<Void>>>
+          tracing) {
     try {
+      HashMap<String, String> map = new HashMap<>();
       ByteBuf d = marshaller.apply(o);
-      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, metadata);
+      ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
+      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, t, metadata);
 
       Payload payload = ByteBufPayload.create(d, m);
-      return r.fireAndForget(payload);
+      return r.fireAndForget(payload).transform(metrics).transform(tracing.apply(map));
     } catch (Throwable t) {
       return Mono.error(t);
     }
@@ -134,10 +231,15 @@ public final class Client<I, O> {
       final Marshaller<I> marshaller,
       final Unmarshaller<O> unmarshaller,
       final I o,
-      final ByteBuf metadata) {
+      final ByteBuf metadata,
+      Function<? super Publisher<O>, ? extends Publisher<O>> metrics,
+      Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>>
+          tracing) {
     try {
+      HashMap<String, String> map = new HashMap<>();
       ByteBuf d = marshaller.apply(o);
-      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, metadata);
+      ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
+      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, t, metadata);
 
       Payload payload = ByteBufPayload.create(d, m);
       return r.requestResponse(payload)
@@ -148,7 +250,9 @@ public final class Client<I, O> {
                 } finally {
                   p.release();
                 }
-              });
+              })
+          .transform(metrics)
+          .transform(tracing.apply(map));
     } catch (Throwable t) {
       return Mono.error(t);
     }
@@ -161,10 +265,15 @@ public final class Client<I, O> {
       final Marshaller<I> marshaller,
       final Unmarshaller<O> unmarshaller,
       final I o,
-      final ByteBuf metadata) {
+      final ByteBuf metadata,
+      Function<? super Publisher<O>, ? extends Publisher<O>> metrics,
+      Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>>
+          tracing) {
     try {
+      HashMap<String, String> map = new HashMap<>();
       ByteBuf d = marshaller.apply(o);
-      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, metadata);
+      ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
+      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, t, metadata);
 
       Payload payload = ByteBufPayload.create(d, m);
       return r.requestStream(payload)
@@ -175,7 +284,9 @@ public final class Client<I, O> {
                 } finally {
                   p.release();
                 }
-              });
+              })
+          .transform(metrics)
+          .transform(tracing.apply(map));
     } catch (Throwable t) {
       return Flux.error(t);
     }
@@ -188,14 +299,22 @@ public final class Client<I, O> {
       final Marshaller<I> marshaller,
       final Unmarshaller<O> unmarshaller,
       final Publisher<I> pub,
-      final ByteBuf metadata) {
+      final ByteBuf metadata,
+      Function<? super Publisher<O>, ? extends Publisher<O>> metrics,
+      Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>>
+          tracing) {
     try {
+
+      HashMap<String, String> map = new HashMap<>();
+
       Flux<Payload> input =
           Flux.from(pub)
               .map(
                   o -> {
                     ByteBuf d = marshaller.apply(o);
-                    ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, metadata);
+                    ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
+                    ByteBuf m =
+                        Metadata.encode(ByteBufAllocator.DEFAULT, service, route, t, metadata);
 
                     return ByteBufPayload.create(d, m);
                   });
@@ -208,7 +327,9 @@ public final class Client<I, O> {
                 } finally {
                   p.release();
                 }
-              });
+              })
+          .transform(metrics)
+          .transform(tracing.apply(map));
 
     } catch (Throwable t) {
       return Flux.error(t);

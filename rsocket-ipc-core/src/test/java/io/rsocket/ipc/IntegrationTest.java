@@ -49,6 +49,8 @@ public class IntegrationTest {
 
     IPCRSocket service =
         Server.service("HelloService")
+            .noMeterRegistry()
+            .noTracer()
             .marshall(Strings.marshaller())
             .unmarshall(Strings.unmarshaller())
             .requestResponse("hello", (s, byteBuf) -> Mono.just("Hello -> " + s))
@@ -69,6 +71,8 @@ public class IntegrationTest {
     Client<CharSequence, String> helloService =
         Client.service("HelloService")
             .rsocket(rsocket)
+            .noMeterRegistry()
+            .noTracer()
             .marshall(Strings.marshaller())
             .unmarshall(Strings.unmarshaller());
 

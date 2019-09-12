@@ -15,7 +15,9 @@
  */
 package io.rsocket.ipc;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.buffer.ByteBuf;
+import io.opentracing.Tracer;
 import io.rsocket.ipc.util.TriFunction;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +29,18 @@ import reactor.core.publisher.Mono;
 
 public final class Server {
   Server() {}
+
+  public interface M {
+    T noMeterRegistry();
+
+    T meterRegistry(MeterRegistry registry);
+  }
+
+  public interface T {
+    P noTracer();
+
+    P tracer(Tracer tracer);
+  }
 
   public interface P {
     <I> U<I> marshall(Marshaller<I> marshaller);
@@ -49,9 +63,11 @@ public final class Server {
   }
 
   @SuppressWarnings("unchecked")
-  private static class Builder implements P, U, H {
+  private static class Builder implements P, U, H, M, T {
     private final String service;
     private Marshaller marshaller;
+    private MeterRegistry meterRegistry;
+    private Tracer tracer;
     private Unmarshaller unmarshaller;
     private final Map<String, BiFunction<Object, ByteBuf, Mono>> rr;
     private final Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc;
@@ -75,6 +91,28 @@ public final class Server {
     @Override
     public H unmarshall(Unmarshaller unmarshaller) {
       this.unmarshaller = Objects.requireNonNull(unmarshaller);
+      return this;
+    }
+
+    @Override
+    public T noMeterRegistry() {
+      return this;
+    }
+
+    @Override
+    public T meterRegistry(MeterRegistry meterRegistry) {
+      this.meterRegistry = meterRegistry;
+      return this;
+    }
+
+    @Override
+    public P noTracer() {
+      return this;
+    }
+
+    @Override
+    public P tracer(Tracer tracer) {
+      this.tracer = tracer;
       return this;
     }
 
@@ -108,11 +146,12 @@ public final class Server {
 
     @Override
     public IPCRSocket rsocket() {
-      return new IPCServerRSocket(service, marshaller, unmarshaller, rr, rc, rs, ff);
+      return new IPCServerRSocket(
+          service, marshaller, unmarshaller, rr, rc, rs, ff, meterRegistry, tracer);
     }
   }
 
-  public static P service(String service) {
+  public static M service(String service) {
     Objects.requireNonNull(service);
     return new Builder(service);
   }

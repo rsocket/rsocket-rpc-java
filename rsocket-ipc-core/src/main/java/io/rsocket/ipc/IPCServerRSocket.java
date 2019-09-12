@@ -15,14 +15,22 @@
  */
 package io.rsocket.ipc;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.buffer.ByteBuf;
+import io.opentracing.SpanContext;
+import io.opentracing.Tracer;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.ipc.util.TriFunction;
 import io.rsocket.rpc.frames.Metadata;
+import io.rsocket.rpc.metrics.Metrics;
+import io.rsocket.rpc.tracing.Tag;
+import io.rsocket.rpc.tracing.Tracing;
 import io.rsocket.util.ByteBufPayload;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -32,6 +40,42 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
   private final String service;
   private final Marshaller marshaller;
   private final Unmarshaller unmarshaller;
+  private final MeterRegistry meterRegistry;
+  private final Tracer tracer;
+
+  private final Map<String, Function<? super Publisher<Payload>, ? extends Publisher<Payload>>>
+      metrics;
+
+  private final Map<
+          String,
+          Function<SpanContext, Function<? super Publisher<Payload>, ? extends Publisher<Payload>>>>
+      tracers;
+
+  private Function<? super Publisher<Payload>, ? extends Publisher<Payload>> getMetric(
+      String method) {
+    return metrics.computeIfAbsent(
+        method,
+        __ ->
+            meterRegistry == null
+                ? Function.identity()
+                : Metrics.timed(
+                    meterRegistry, "rsocket.server", "service", service, "method", method));
+  }
+
+  private Function<SpanContext, Function<? super Publisher<Payload>, ? extends Publisher<Payload>>>
+      getTracer(String method) {
+    return tracers.computeIfAbsent(
+        method,
+        __ ->
+            tracer == null
+                ? Tracing.traceAsChild()
+                : Tracing.traceAsChild(
+                    tracer,
+                    method,
+                    Tag.of("rsocket.service", service),
+                    Tag.of("rsocket.rpc.role", "server"),
+                    Tag.of("rsocket.rpc.version", "ipc")));
+  }
 
   private final Map<String, BiFunction<Object, ByteBuf, Mono>> rr;
   private final Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc;
@@ -45,7 +89,9 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
       Map<String, BiFunction<Object, ByteBuf, Mono>> rr,
       Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc,
       Map<String, BiFunction<Object, ByteBuf, Flux>> rs,
-      Map<String, BiFunction<Object, ByteBuf, Mono<Void>>> ff) {
+      Map<String, BiFunction<Object, ByteBuf, Mono<Void>>> ff,
+      MeterRegistry meterRegistry,
+      Tracer tracer) {
     this.service = service;
     this.marshaller = marshaller;
     this.unmarshaller = unmarshaller;
@@ -53,6 +99,10 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
     this.rc = rc;
     this.rs = rs;
     this.ff = ff;
+    this.meterRegistry = meterRegistry;
+    this.tracer = tracer;
+    this.metrics = new ConcurrentHashMap<>();
+    this.tracers = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -78,7 +128,31 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
 
       Object input = unmarshaller.apply(data);
 
-      return ff.apply(input, buf);
+      SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
+
+      return ff.apply(input, buf)
+          .transform(
+              new Function<Mono<Void>, Publisher<Void>>() {
+                @Override
+                public Publisher<Void> apply(Mono<Void> voidMono) {
+                  Function<? super Publisher<Payload>, ? extends Publisher<Payload>> function =
+                      getMetric(method);
+                  return Mono.from(function.apply(voidMono.cast(Payload.class))).then();
+                }
+              })
+          .transform(
+              new Function<Mono<Void>, Publisher<Void>>() {
+                @Override
+                public Publisher<Void> apply(Mono<Void> voidMono) {
+                  Function<
+                          SpanContext,
+                          Function<? super Publisher<Payload>, ? extends Publisher<Payload>>>
+                      f1 = getTracer(method);
+                  Function<? super Publisher<Payload>, ? extends Publisher<Payload>> f2 =
+                      f1.apply(spanContext);
+                  return Mono.from(f2.apply(voidMono.cast(Payload.class))).then();
+                }
+              });
 
     } catch (Throwable t) {
       return Mono.error(t);
@@ -104,8 +178,12 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
 
       Object input = unmarshaller.apply(data);
 
-      return rr.apply(input, buf).map(this::marshall);
+      SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
 
+      return rr.apply(input, buf)
+          .map(this::marshall)
+          .transform(getMetric(method))
+          .transform(getTracer(method).apply(spanContext));
     } catch (Throwable t) {
       return Mono.error(t);
     } finally {
@@ -130,7 +208,12 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
             new NullPointerException("nothing found for service " + service + " method " + method));
       }
 
-      return rs.apply(input, buf).map(this::marshall);
+      SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
+
+      return rs.apply(input, buf)
+          .map(this::marshall)
+          .transform(getMetric(method))
+          .transform(getTracer(method).apply(spanContext));
 
     } catch (Throwable t) {
       return Flux.error(t);
@@ -167,7 +250,12 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
                 }
               });
 
-      return rc.apply(input, f, buf).map(this::marshall);
+      SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
+
+      return rc.apply(input, f, buf)
+          .map(this::marshall)
+          .transform(getMetric(method))
+          .transform(getTracer(method).apply(spanContext));
 
     } catch (Throwable t) {
       return Flux.error(t);

@@ -63,6 +63,8 @@ public class GraphQLIntegrationTest {
 
     IPCRSocket service =
         GraphQLServer.service("books")
+            .noMeterRegistry()
+            .noTracer()
             .marshall(Json.marshaller(Object.class))
             .unmarshall(Json.unmarshaller(GraphQLRequest.class))
             .noDataLoadRegister()
@@ -76,6 +78,8 @@ public class GraphQLIntegrationTest {
     GraphQLClient.Query<GraphQLDataFetchers.Book> bookQuery =
         GraphQLClient.service("books")
             .rsocket(rsocket)
+            .noMeterRegistry()
+            .noTracer()
             .marshall(Json.marshaller(GraphQLRequest.class))
             .unmarshall(unmarshaller())
             .query();

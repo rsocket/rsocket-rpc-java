@@ -1,5 +1,7 @@
 package io.rsocket.graphql;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.opentracing.Tracer;
 import io.rsocket.RSocket;
 import io.rsocket.ipc.Client;
 import io.rsocket.ipc.Functions;
@@ -12,7 +14,19 @@ public final class GraphQLClient {
   GraphQLClient() {}
 
   public interface R {
-    P rsocket(RSocket rSocket);
+    M rsocket(RSocket rSocket);
+  }
+
+  public interface M {
+    T noMeterRegistry();
+
+    T meterRegistry(MeterRegistry registry);
+  }
+
+  public interface T {
+    P noTracer();
+
+    P tracer(Tracer tracer);
   }
 
   public interface P {
@@ -31,11 +45,13 @@ public final class GraphQLClient {
     Subscription<T> subscription();
   }
 
-  private static class Builder<T> implements R, P, U, C<T> {
+  private static class Builder<O> implements R, P, U, C<O>, M, T {
     private final String service;
     private Marshaller<GraphQLRequest> marshaller;
     private Unmarshaller unmarshaller;
     private RSocket rsocket;
+    private MeterRegistry meterRegistry;
+    private Tracer tracer;
 
     private Builder(final String service) {
       this.service = service;
@@ -48,46 +64,84 @@ public final class GraphQLClient {
     }
 
     @Override
-    public <T> C<T> unmarshall(Unmarshaller<T> unmarshaller) {
+    public <O> C<O> unmarshall(Unmarshaller<O> unmarshaller) {
       this.unmarshaller = unmarshaller;
-      return (C<T>) this;
+      return (C<O>) this;
     }
 
     @Override
-    public P rsocket(RSocket rsocket) {
+    public T noMeterRegistry() {
+      return this;
+    }
+
+    @Override
+    public T meterRegistry(MeterRegistry meterRegistry) {
+      this.meterRegistry = meterRegistry;
+      return this;
+    }
+
+    @Override
+    public P noTracer() {
+      return this;
+    }
+
+    @Override
+    public P tracer(Tracer tracer) {
+      this.tracer = tracer;
+      return this;
+    }
+
+    @Override
+    public M rsocket(RSocket rsocket) {
       this.rsocket = Objects.requireNonNull(rsocket);
       return this;
     }
 
-    private <T> Client<GraphQLRequest, T> client() {
+    private <O> Client<GraphQLRequest, O> client() {
       Objects.requireNonNull(service);
       Objects.requireNonNull(rsocket);
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
 
-      return Client.service(service).rsocket(rsocket).marshall(marshaller).unmarshall(unmarshaller);
+      Client.M rsocket = Client.service(service).rsocket(this.rsocket);
+
+      Client.T t;
+      if (meterRegistry != null) {
+        t = rsocket.meterRegistry(meterRegistry);
+      } else {
+        t = rsocket.noMeterRegistry();
+      }
+
+      Client.P p;
+      if (tracer != null) {
+        p = t.tracer(this.tracer);
+      } else {
+        p = t.noTracer();
+      }
+
+      return p.marshall(marshaller).unmarshall(unmarshaller);
     }
 
     @Override
-    public Query<T> query() {
-      Functions.RequestResponse<GraphQLRequest, T> query =
-          (Functions.RequestResponse<GraphQLRequest, T>) client().requestResponse("Query");
+    public Query<O> query() {
+      Functions.RequestResponse<GraphQLRequest, O> query =
+          (Functions.RequestResponse<GraphQLRequest, O>) client().requestResponse("Query");
 
       return query::apply;
     }
 
     @Override
-    public Mutate<T> mutate() {
-      Functions.RequestResponse<GraphQLRequest, T> mutate =
-          (Functions.RequestResponse<GraphQLRequest, T>) client().requestResponse("Mutate");
+    public Mutate<O> mutate() {
+      Functions.RequestResponse<GraphQLRequest, O> mutate =
+          (Functions.RequestResponse<GraphQLRequest, O>) client().requestResponse("Mutate");
 
       return mutate::apply;
     }
 
     @Override
-    public Subscription<T> subscription() {
-      Functions.RequestStream<GraphQLRequest, T> subscription =
-          (Functions.RequestStream<GraphQLRequest, T>) client().requestStream("Subscription");
+    public Subscription<O> subscription() {
+      Functions.RequestStream<GraphQLRequest, O> subscription =
+          (Functions.RequestStream<GraphQLRequest, O>) client().requestStream("Subscription");
 
       return subscription::apply;
     }
