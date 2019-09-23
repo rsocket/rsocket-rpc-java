@@ -103,9 +103,31 @@ public final class Client<I, O> {
   }
 
   public Functions.RequestResponse<I, O> requestResponse(String route) {
+    return genericRequestResponse(route, marshaller, unmarshaller);
+  }
+
+  public <X> Functions.RequestResponse<X, O> requestResponse(
+      String route, Marshaller<X> marshaller) {
+    return genericRequestResponse(route, marshaller, unmarshaller);
+  }
+
+  public <Y> Functions.RequestResponse<I, Y> requestResponse(
+      String route, Unmarshaller<Y> unmarshaller) {
+    return genericRequestResponse(route, marshaller, unmarshaller);
+  }
+
+  public <X, Y> Functions.RequestResponse<X, Y> requestResponse(
+      String route, Marshaller<X> marshaller, Unmarshaller<Y> unmarshaller) {
+    return genericRequestResponse(route, marshaller, unmarshaller);
+  }
+
+  <X, Y> Functions.RequestResponse<X, Y> genericRequestResponse(
+      String route, Marshaller<X> marshaller, Unmarshaller<Y> unmarshaller) {
     Objects.requireNonNull(route);
-    Function<? super Publisher<O>, ? extends Publisher<O>> metrics = metrics(route);
-    Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>> tracing =
+    Objects.requireNonNull(marshaller);
+    Objects.requireNonNull(unmarshaller);
+    Function<? super Publisher<Y>, ? extends Publisher<Y>> metrics = metrics(route);
+    Function<Map<String, String>, Function<? super Publisher<Y>, ? extends Publisher<Y>>> tracing =
         tracing(route);
     return (o, byteBuf) ->
         doRequestResponse(
@@ -113,9 +135,28 @@ public final class Client<I, O> {
   }
 
   public Functions.RequestChannel<I, O> requestChannel(String route) {
+    return genericRequestChannel(route, marshaller, unmarshaller);
+  }
+
+  public <X> Functions.RequestChannel<X, O> requestChannel(String route, Marshaller<X> marshaller) {
+    return genericRequestChannel(route, marshaller, unmarshaller);
+  }
+
+  public <Y> Functions.RequestChannel<I, Y> requestChannel(
+      String route, Unmarshaller<Y> unmarshaller) {
+    return genericRequestChannel(route, marshaller, unmarshaller);
+  }
+
+  public <X, Y> Functions.RequestChannel<X, Y> requestChannel(
+      String route, Marshaller<X> marshaller, Unmarshaller<Y> unmarshaller) {
+    return genericRequestChannel(route, marshaller, unmarshaller);
+  }
+
+  <X, Y> Functions.RequestChannel<X, Y> genericRequestChannel(
+      String route, Marshaller<X> marshaller, Unmarshaller<Y> unmarshaller) {
     Objects.requireNonNull(route);
-    Function<? super Publisher<O>, ? extends Publisher<O>> metrics = metrics(route);
-    Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>> tracing =
+    Function<? super Publisher<Y>, ? extends Publisher<Y>> metrics = metrics(route);
+    Function<Map<String, String>, Function<? super Publisher<Y>, ? extends Publisher<Y>>> tracing =
         tracing(route);
     return (publisher, byteBuf) ->
         doRequestChannel(
@@ -131,9 +172,28 @@ public final class Client<I, O> {
   }
 
   public Functions.RequestStream<I, O> requestStream(String route) {
+    return genericRequestStream(route, marshaller, unmarshaller);
+  }
+
+  public <X> Functions.RequestStream<X, O> requestStream(String route, Marshaller<X> marshaller) {
+    return genericRequestStream(route, marshaller, unmarshaller);
+  }
+
+  public <Y> Functions.RequestStream<I, Y> requestStream(
+      String route, Unmarshaller<Y> unmarshaller) {
+    return genericRequestStream(route, marshaller, unmarshaller);
+  }
+
+  public <X, Y> Functions.RequestStream<X, Y> requestStream(
+      String route, Marshaller<X> marshaller, Unmarshaller<Y> unmarshaller) {
+    return genericRequestStream(route, marshaller, unmarshaller);
+  }
+
+  <X, Y> Functions.RequestStream<X, Y> genericRequestStream(
+      String route, Marshaller<X> marshaller, Unmarshaller<Y> unmarshaller) {
     Objects.requireNonNull(route);
-    Function<? super Publisher<O>, ? extends Publisher<O>> metrics = metrics(route);
-    Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>> tracing =
+    Function<? super Publisher<Y>, ? extends Publisher<Y>> metrics = metrics(route);
+    Function<Map<String, String>, Function<? super Publisher<Y>, ? extends Publisher<Y>>> tracing =
         tracing(route);
     return (o, byteBuf) ->
         doRequestStream(
@@ -141,6 +201,14 @@ public final class Client<I, O> {
   }
 
   public Functions.FireAndForget<I> fireAndForget(String route) {
+    return genericFireAndForget(route, marshaller);
+  }
+
+  public <X> Functions.FireAndForget<X> fireAndForget(String route, Marshaller<X> marshaller) {
+    return genericFireAndForget(route, marshaller);
+  }
+
+  <X> Functions.FireAndForget<X> genericFireAndForget(String route, Marshaller<X> marshaller) {
     Objects.requireNonNull(route);
     Function<? super Publisher<Void>, ? extends Publisher<Void>> metrics = metrics(route);
     Function<Map<String, String>, Function<? super Publisher<Void>, ? extends Publisher<Void>>>
@@ -201,12 +269,12 @@ public final class Client<I, O> {
     }
   }
 
-  private Mono<Void> doFireAndForget(
+  private <X> Mono<Void> doFireAndForget(
       final String service,
       final String route,
       final RSocket r,
-      final Marshaller<I> marshaller,
-      final I o,
+      final Marshaller<X> marshaller,
+      final X o,
       final ByteBuf metadata,
       Function<? super Publisher<Void>, ? extends Publisher<Void>> metrics,
       Function<Map<String, String>, Function<? super Publisher<Void>, ? extends Publisher<Void>>>
@@ -224,16 +292,16 @@ public final class Client<I, O> {
     }
   }
 
-  private Mono<O> doRequestResponse(
+  private <X, Y> Mono<Y> doRequestResponse(
       final String service,
       final String route,
       final RSocket r,
-      final Marshaller<I> marshaller,
-      final Unmarshaller<O> unmarshaller,
-      final I o,
+      final Marshaller<X> marshaller,
+      final Unmarshaller<Y> unmarshaller,
+      final X o,
       final ByteBuf metadata,
-      Function<? super Publisher<O>, ? extends Publisher<O>> metrics,
-      Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>>
+      Function<? super Publisher<Y>, ? extends Publisher<Y>> metrics,
+      Function<Map<String, String>, Function<? super Publisher<Y>, ? extends Publisher<Y>>>
           tracing) {
     try {
       HashMap<String, String> map = new HashMap<>();
@@ -258,16 +326,16 @@ public final class Client<I, O> {
     }
   }
 
-  private Flux<O> doRequestStream(
+  private <X, Y> Flux<Y> doRequestStream(
       final String service,
       final String route,
       final RSocket r,
-      final Marshaller<I> marshaller,
-      final Unmarshaller<O> unmarshaller,
-      final I o,
+      final Marshaller<X> marshaller,
+      final Unmarshaller<Y> unmarshaller,
+      final X o,
       final ByteBuf metadata,
-      Function<? super Publisher<O>, ? extends Publisher<O>> metrics,
-      Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>>
+      Function<? super Publisher<Y>, ? extends Publisher<Y>> metrics,
+      Function<Map<String, String>, Function<? super Publisher<Y>, ? extends Publisher<Y>>>
           tracing) {
     try {
       HashMap<String, String> map = new HashMap<>();
@@ -292,16 +360,16 @@ public final class Client<I, O> {
     }
   }
 
-  private Flux<O> doRequestChannel(
+  private <X, Y> Flux<Y> doRequestChannel(
       final String service,
       final String route,
       final RSocket r,
-      final Marshaller<I> marshaller,
-      final Unmarshaller<O> unmarshaller,
-      final Publisher<I> pub,
+      final Marshaller<X> marshaller,
+      final Unmarshaller<Y> unmarshaller,
+      final Publisher<X> pub,
       final ByteBuf metadata,
-      Function<? super Publisher<O>, ? extends Publisher<O>> metrics,
-      Function<Map<String, String>, Function<? super Publisher<O>, ? extends Publisher<O>>>
+      Function<? super Publisher<Y>, ? extends Publisher<Y>> metrics,
+      Function<Map<String, String>, Function<? super Publisher<Y>, ? extends Publisher<Y>>>
           tracing) {
     try {
 

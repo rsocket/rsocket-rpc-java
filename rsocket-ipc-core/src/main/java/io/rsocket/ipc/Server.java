@@ -51,15 +51,105 @@ public final class Server {
   }
 
   public interface H<I, O> {
-    H<I, O> requestResponse(String route, Functions.RequestResponse<I, O> rr);
+    H<I, O> requestResponse(String route, Functions.RequestResponse<O, I> rr);
 
-    H<I, O> requestChannel(String route, Functions.HandleRequestHandle<I, O> rc);
+    H<I, O> requestChannel(String route, Functions.HandleRequestHandle<O, I> rc);
 
-    H<I, O> requestStream(String route, Functions.RequestStream<I, O> rs);
+    H<I, O> requestStream(String route, Functions.RequestStream<O, I> rs);
 
-    H<I, O> fireAndForget(String route, Functions.FireAndForget<I> ff);
+    H<I, O> fireAndForget(String route, Functions.FireAndForget<O> ff);
+
+    <X> H<I, O> requestResponse(
+        String route, Marshaller<X> marshaller, Functions.RequestResponse<O, X> rr);
+
+    <X> H<I, O> requestChannel(
+        String route, Marshaller<X> marshaller, Functions.HandleRequestHandle<O, X> rc);
+
+    <X> H<I, O> requestStream(
+        String route, Marshaller<X> marshaller, Functions.RequestStream<O, X> rs);
+
+    <Y> H<I, O> requestResponse(
+        String route, Unmarshaller<Y> unmarshaller, Functions.RequestResponse<Y, I> rr);
+
+    <Y> H<I, O> requestChannel(
+        String route, Unmarshaller<Y> unmarshaller, Functions.HandleRequestHandle<Y, I> rc);
+
+    <Y> H<I, O> requestStream(
+        String route, Unmarshaller<Y> unmarshaller, Functions.RequestStream<Y, I> rs);
+
+    <Y> H<I, O> fireAndForget(
+        String route, Unmarshaller<Y> unmarshaller, Functions.FireAndForget<Y> ff);
+
+    <X, Y> H<I, O> requestResponse(
+        String route,
+        Unmarshaller<Y> unmarshaller,
+        Marshaller<X> marshaller,
+        Functions.RequestResponse<Y, X> rr);
+
+    <X, Y> H<I, O> requestChannel(
+        String route,
+        Unmarshaller<Y> unmarshaller,
+        Marshaller<X> marshaller,
+        Functions.HandleRequestHandle<Y, X> rc);
+
+    <X, Y> H<I, O> requestStream(
+        String route,
+        Unmarshaller<Y> unmarshaller,
+        Marshaller<X> marshaller,
+        Functions.RequestStream<Y, X> rs);
 
     IPCRSocket rsocket();
+  }
+
+  static class RRContext {
+    final BiFunction<Object, ByteBuf, Mono> rr;
+    final Marshaller marshaller;
+    final Unmarshaller unmarshaller;
+
+    public RRContext(
+        BiFunction<Object, ByteBuf, Mono> rr, Marshaller marshaller, Unmarshaller unmarshaller) {
+      this.rr = rr;
+      this.marshaller = marshaller;
+      this.unmarshaller = unmarshaller;
+    }
+  }
+
+  static class RCContext {
+    final TriFunction<Object, Publisher, ByteBuf, Flux> rc;
+    final Marshaller marshaller;
+    final Unmarshaller unmarshaller;
+
+    public RCContext(
+        TriFunction<Object, Publisher, ByteBuf, Flux> rc,
+        Marshaller marshaller,
+        Unmarshaller unmarshaller) {
+      this.rc = rc;
+      this.marshaller = marshaller;
+      this.unmarshaller = unmarshaller;
+    }
+  }
+
+  static class RSContext {
+    final BiFunction<Object, ByteBuf, Flux> rs;
+    final Marshaller marshaller;
+    final Unmarshaller unmarshaller;
+
+    public RSContext(
+        BiFunction<Object, ByteBuf, Flux> rs, Marshaller marshaller, Unmarshaller unmarshaller) {
+      this.rs = rs;
+      this.marshaller = marshaller;
+      this.unmarshaller = unmarshaller;
+    }
+  }
+
+  static class FFContext {
+    final BiFunction<Object, ByteBuf, Mono<Void>> ff;
+    final Unmarshaller unmarshaller;
+
+    public FFContext(BiFunction<Object, ByteBuf, Mono<Void>> ff, Unmarshaller unmarshaller) {
+      this.ff = ff;
+      this.unmarshaller = unmarshaller;
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -69,10 +159,10 @@ public final class Server {
     private MeterRegistry meterRegistry;
     private Tracer tracer;
     private Unmarshaller unmarshaller;
-    private final Map<String, BiFunction<Object, ByteBuf, Mono>> rr;
-    private final Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc;
-    private final Map<String, BiFunction<Object, ByteBuf, Flux>> rs;
-    private final Map<String, BiFunction<Object, ByteBuf, Mono<Void>>> ff;
+    private final Map<String, RRContext> rr;
+    private final Map<String, RCContext> rc;
+    private final Map<String, RSContext> rs;
+    private final Map<String, FFContext> ff;
 
     private Builder(String service) {
       this.rr = new HashMap<>();
@@ -118,36 +208,110 @@ public final class Server {
 
     @Override
     public H requestResponse(String route, Functions.RequestResponse rr) {
-      Objects.requireNonNull(rr);
-      this.rr.put(route, rr);
-      return this;
+      return requestResponse(route, unmarshaller, marshaller, rr);
     }
 
     @Override
     public H requestChannel(String route, Functions.HandleRequestHandle rc) {
-      Objects.requireNonNull(rc);
-      this.rc.put(route, rc);
-      return this;
+      return requestChannel(route, unmarshaller, marshaller, rc);
     }
 
     @Override
     public H requestStream(String route, Functions.RequestStream rs) {
-      Objects.requireNonNull(rs);
-      this.rs.put(route, rs);
-      return this;
+      return requestStream(route, unmarshaller, marshaller, rs);
     }
 
     @Override
     public H fireAndForget(String route, Functions.FireAndForget ff) {
+      return fireAndForget(route, unmarshaller, ff);
+    }
+
+    @Override
+    public H requestResponse(String route, Marshaller marshaller, Functions.RequestResponse rr) {
+      return requestResponse(route, unmarshaller, marshaller, rr);
+    }
+
+    @Override
+    public H requestChannel(String route, Marshaller marshaller, Functions.HandleRequestHandle rc) {
+      return requestChannel(route, unmarshaller, marshaller, rc);
+    }
+
+    @Override
+    public H requestStream(String route, Marshaller marshaller, Functions.RequestStream rs) {
+      return requestStream(route, unmarshaller, marshaller, rs);
+    }
+
+    @Override
+    public H requestResponse(
+        String route, Unmarshaller unmarshaller, Functions.RequestResponse rr) {
+      return requestResponse(route, unmarshaller, marshaller, rr);
+    }
+
+    @Override
+    public H requestChannel(
+        String route, Unmarshaller unmarshaller, Functions.HandleRequestHandle rc) {
+      return requestChannel(route, unmarshaller, marshaller, rc);
+    }
+
+    @Override
+    public H requestStream(String route, Unmarshaller unmarshaller, Functions.RequestStream rs) {
+      return requestStream(route, unmarshaller, marshaller, rs);
+    }
+
+    @Override
+    public H fireAndForget(String route, Unmarshaller unmarshaller, Functions.FireAndForget ff) {
+      Objects.requireNonNull(route);
       Objects.requireNonNull(ff);
-      this.ff.put(route, ff);
+      Objects.requireNonNull(unmarshaller);
+      this.ff.put(route, new FFContext(ff, unmarshaller));
+      return this;
+    }
+
+    @Override
+    public H requestResponse(
+        String route,
+        Unmarshaller unmarshaller,
+        Marshaller marshaller,
+        Functions.RequestResponse rr) {
+      Objects.requireNonNull(route);
+      Objects.requireNonNull(marshaller);
+      Objects.requireNonNull(unmarshaller);
+      Objects.requireNonNull(rr);
+      this.rr.put(route, new RRContext(rr, marshaller, unmarshaller));
+      return this;
+    }
+
+    @Override
+    public H requestChannel(
+        String route,
+        Unmarshaller unmarshaller,
+        Marshaller marshaller,
+        Functions.HandleRequestHandle rc) {
+      Objects.requireNonNull(route);
+      Objects.requireNonNull(marshaller);
+      Objects.requireNonNull(unmarshaller);
+      Objects.requireNonNull(rc);
+      this.rc.put(route, new RCContext(rc, marshaller, unmarshaller));
+      return this;
+    }
+
+    @Override
+    public H requestStream(
+        String route,
+        Unmarshaller unmarshaller,
+        Marshaller marshaller,
+        Functions.RequestStream rs) {
+      Objects.requireNonNull(route);
+      Objects.requireNonNull(marshaller);
+      Objects.requireNonNull(unmarshaller);
+      Objects.requireNonNull(rs);
+      this.rs.put(route, new RSContext(rs, marshaller, unmarshaller));
       return this;
     }
 
     @Override
     public IPCRSocket rsocket() {
-      return new IPCServerRSocket(
-          service, marshaller, unmarshaller, rr, rc, rs, ff, meterRegistry, tracer);
+      return new IPCServerRSocket(service, rr, rc, rs, ff, meterRegistry, tracer);
     }
   }
 

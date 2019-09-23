@@ -17,6 +17,7 @@ package io.rsocket.ipc;
 
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
+import io.rsocket.ipc.marshallers.Primitives;
 import io.rsocket.ipc.marshallers.Strings;
 import io.rsocket.rpc.rsocket.RequestHandlingRSocket;
 import io.rsocket.transport.local.LocalClientTransport;
@@ -55,8 +56,21 @@ public class IntegrationTest {
             .unmarshall(Strings.unmarshaller())
             .requestResponse("hello", (s, byteBuf) -> Mono.just("Hello -> " + s))
             .requestResponse("goodbye", (s, byteBuf) -> Mono.just("Goodbye -> " + s))
+            .requestResponse(
+                "count",
+                Primitives.intMarshaller(),
+                (charSequence, byteBuf) -> Mono.just(charSequence.length()))
+            .requestResponse(
+                "increment",
+                Primitives.intUnmarshaller(),
+                Primitives.intMarshaller(),
+                (integer, byteBuf) -> Mono.just(integer + 1))
             .requestStream(
                 "helloStream", (s, byteBuf) -> Flux.range(1, 10).map(i -> i + " - Hello -> " + s))
+            .requestStream(
+                "toString",
+                Primitives.longUnmarshaller(),
+                (aLong, byteBuf) -> Flux.just(String.valueOf(aLong)))
             .fireAndForget(
                 "ff",
                 (s, byteBuf) -> {
@@ -92,5 +106,21 @@ public class IntegrationTest {
 
     String r3 = helloService.requestChannel("helloChannel").apply(Mono.just("Eve")).blockLast();
     Assert.assertEquals("Hello -> Eve", r3);
+
+    int count =
+        helloService.requestResponse("count", Primitives.intUnmarshaller()).apply("hello").block();
+    Assert.assertEquals(5, count);
+
+    long l = System.currentTimeMillis();
+    String toString =
+        helloService.requestStream("toString", Primitives.longMarshaller()).apply(l).blockLast();
+    Assert.assertEquals(String.valueOf(l), toString);
+
+    Integer increment =
+        helloService
+            .requestResponse("increment", Primitives.intMarshaller(), Primitives.intUnmarshaller())
+            .apply(1)
+            .block();
+    Assert.assertEquals(2, increment.intValue());
   }
 }

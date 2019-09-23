@@ -21,7 +21,6 @@ import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
-import io.rsocket.ipc.util.TriFunction;
 import io.rsocket.rpc.frames.Metadata;
 import io.rsocket.rpc.metrics.Metrics;
 import io.rsocket.rpc.tracing.Tag;
@@ -29,7 +28,6 @@ import io.rsocket.rpc.tracing.Tracing;
 import io.rsocket.util.ByteBufPayload;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -38,8 +36,6 @@ import reactor.core.publisher.Mono;
 @SuppressWarnings("unchecked")
 class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
   private final String service;
-  private final Marshaller marshaller;
-  private final Unmarshaller unmarshaller;
   private final MeterRegistry meterRegistry;
   private final Tracer tracer;
 
@@ -77,24 +73,20 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
                     Tag.of("rsocket.rpc.version", "ipc")));
   }
 
-  private final Map<String, BiFunction<Object, ByteBuf, Mono>> rr;
-  private final Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc;
-  private final Map<String, BiFunction<Object, ByteBuf, Flux>> rs;
-  private final Map<String, BiFunction<Object, ByteBuf, Mono<Void>>> ff;
+  private final Map<String, Server.RRContext> rr;
+  private final Map<String, Server.RCContext> rc;
+  private final Map<String, Server.RSContext> rs;
+  private final Map<String, Server.FFContext> ff;
 
   IPCServerRSocket(
       String service,
-      Marshaller marshaller,
-      Unmarshaller unmarshaller,
-      Map<String, BiFunction<Object, ByteBuf, Mono>> rr,
-      Map<String, TriFunction<Object, Publisher, ByteBuf, Flux>> rc,
-      Map<String, BiFunction<Object, ByteBuf, Flux>> rs,
-      Map<String, BiFunction<Object, ByteBuf, Mono<Void>>> ff,
+      Map<String, Server.RRContext> rr,
+      Map<String, Server.RCContext> rc,
+      Map<String, Server.RSContext> rs,
+      Map<String, Server.FFContext> ff,
       MeterRegistry meterRegistry,
       Tracer tracer) {
     this.service = service;
-    this.marshaller = marshaller;
-    this.unmarshaller = unmarshaller;
     this.rr = rr;
     this.rc = rc;
     this.rs = rs;
@@ -119,18 +111,20 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
       ByteBuf buf = Metadata.getMetadata(metadata);
       String method = Metadata.getMethod(metadata);
 
-      BiFunction<Object, ByteBuf, Mono<Void>> ff = this.ff.get(method);
+      Server.FFContext ffContext = this.ff.get(method);
 
-      if (ff == null) {
+      if (ffContext == null) {
         return Mono.error(
             new NullPointerException("nothing found for service " + service + " method " + method));
       }
 
-      Object input = unmarshaller.apply(data);
+      Object input = ffContext.unmarshaller.apply(data);
 
       SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
 
-      return ff.apply(input, buf)
+      return ffContext
+          .ff
+          .apply(input, buf)
           .transform(
               new Function<Mono<Void>, Publisher<Void>>() {
                 @Override
@@ -169,19 +163,21 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
 
       ByteBuf buf = Metadata.getMetadata(metadata);
       String method = Metadata.getMethod(metadata);
-      BiFunction<Object, ByteBuf, Mono> rr = this.rr.get(method);
+      Server.RRContext rrContext = this.rr.get(method);
 
-      if (rr == null) {
+      if (rrContext == null) {
         return Mono.error(
             new NullPointerException("nothing found for service " + service + " method " + method));
       }
 
-      Object input = unmarshaller.apply(data);
+      Object input = rrContext.unmarshaller.apply(data);
 
       SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
 
-      return rr.apply(input, buf)
-          .map(this::marshall)
+      return rrContext
+          .rr
+          .apply(input, buf)
+          .map(o -> marshall(o, rrContext.marshaller))
           .transform(getMetric(method))
           .transform(getTracer(method).apply(spanContext));
     } catch (Throwable t) {
@@ -200,18 +196,20 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
       ByteBuf buf = Metadata.getMetadata(metadata);
       String method = Metadata.getMethod(metadata);
 
-      Object input = unmarshaller.apply(data);
-      BiFunction<Object, ByteBuf, Flux> rs = this.rs.get(method);
+      Server.RSContext rsContext = this.rs.get(method);
 
-      if (rs == null) {
+      if (rsContext == null) {
         return Flux.error(
             new NullPointerException("nothing found for service " + service + " method " + method));
       }
 
+      Object input = rsContext.unmarshaller.apply(data);
       SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
 
-      return rs.apply(input, buf)
-          .map(this::marshall)
+      return rsContext
+          .rs
+          .apply(input, buf)
+          .map(o -> marshall(o, rsContext.marshaller))
           .transform(getMetric(method))
           .transform(getTracer(method).apply(spanContext));
 
@@ -231,19 +229,19 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
       ByteBuf buf = Metadata.getMetadata(metadata);
       String method = Metadata.getMethod(metadata);
 
-      Object input = unmarshaller.apply(data);
-      TriFunction<Object, Publisher, ByteBuf, Flux> rc = this.rc.get(method);
+      Server.RCContext rcContext = this.rc.get(method);
 
-      if (rc == null) {
+      if (rcContext == null) {
         return Flux.error(
             new NullPointerException("nothing found for service " + service + " method " + method));
       }
 
+      Object input = rcContext.unmarshaller.apply(data);
       Flux f =
           publisher.map(
               p -> {
                 try {
-                  Object o = unmarshaller.apply(p.sliceData());
+                  Object o = rcContext.unmarshaller.apply(p.sliceData());
                   return o;
                 } finally {
                   p.release();
@@ -252,8 +250,10 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
 
       SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
 
-      return rc.apply(input, f, buf)
-          .map(this::marshall)
+      return rcContext
+          .rc
+          .apply(input, f, buf)
+          .map(o -> marshall(o, rcContext.marshaller))
           .transform(getMetric(method))
           .transform(getTracer(method).apply(spanContext));
 
@@ -262,7 +262,7 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
     }
   }
 
-  private Payload marshall(Object o) {
+  private Payload marshall(Object o, Marshaller marshaller) {
     ByteBuf data = marshaller.apply(o);
     return ByteBufPayload.create(data);
   }
