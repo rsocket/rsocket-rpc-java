@@ -82,12 +82,21 @@ class JavaRSocketRpcGenerator : public google::protobuf::compiler::CodeGenerator
     blocking_java_rsocket_rpc_generator::ProtoFlavor::NORMAL;
 
     bool disable_version = false;
+    bool generate_blocking_api = false;
+
     for (size_t i = 0; i < options.size(); i++) {
-        if (options[i].first == "lite") {
+        const string& option = options[i].first;
+        if (option == "lite") {
             flavor = blocking_java_rsocket_rpc_generator::ProtoFlavor::LITE;
-        } else if (options[i].first == "noversion") {
+        } else if (option == "noversion") {
             disable_version = true;
+        } else if (option == "generate-blocking-api") {
+            generate_blocking_api = true;
         }
+    }
+
+    if (!generate_blocking_api) {
+        return true;
     }
 
     string package_name = blocking_java_rsocket_rpc_generator::ServiceJavaPackage(file);
