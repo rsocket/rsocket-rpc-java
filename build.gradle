@@ -34,10 +34,8 @@ subprojects {
     sourceCompatibility = 1.8
     targetCompatibility = 1.8
 
-    ext['reactor-bom.version'] = 'Dysprosium-M3'
-    ext['rsocket.version'] = '1.0.0-RC3'
-    
-    ext['graphql.version'] = '11.0'
+    ext['reactor-bom.version'] = 'Dysprosium-RELEASE'
+    ext['rsocket.version'] = '1.0.0-RC5'
     ext['protobuf.version'] = '3.6.1'
     ext['log4j.version'] = '2.11.2'
     ext['slf4j.version'] = '1.8.0-beta2'
@@ -53,8 +51,7 @@ subprojects {
     ext['hdrhistogram.version'] = '2.1.10'
 
     repositories {
-        jcenter()
-        maven { url 'https://repo.spring.io/milestone' }
+        mavenCentral()
         if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
             maven { url 'http://repo.spring.io/libs-snapshot' }
             maven { url 'https://oss.jfrog.org/oss-snapshot-local' }
