@@ -21,6 +21,7 @@ import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
+import io.rsocket.ipc.util.TriFunction;
 import io.rsocket.rpc.frames.Metadata;
 import io.rsocket.rpc.metrics.Metrics;
 import io.rsocket.rpc.tracing.Tag;
@@ -32,6 +33,7 @@ import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.annotation.Nullable;
 
 @SuppressWarnings("unchecked")
 class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
@@ -73,28 +75,39 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
                     Tag.of("rsocket.rpc.version", "ipc")));
   }
 
-  private final Map<String, Server.RRContext> rr;
-  private final Map<String, Server.RCContext> rc;
-  private final Map<String, Server.RSContext> rs;
-  private final Map<String, Server.FFContext> ff;
+  private final Map<String, TriFunction<Payload, String, SpanContext, Mono<Void>>> fireAndForgetRegistry;
+  private final Map<String, TriFunction<Payload, String, SpanContext, Mono<Payload>>> requestResponseRegistry;
+  private final Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestChannelRegistry;
+  private final Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestStreamRegistry;
 
   IPCServerRSocket(
       String service,
-      Map<String, Server.RRContext> rr,
-      Map<String, Server.RCContext> rc,
-      Map<String, Server.RSContext> rs,
-      Map<String, Server.FFContext> ff,
+      Map<String, TriFunction<Payload, String, SpanContext, Mono<Void>>> fireAndForgetRegistry,
+Map<String, TriFunction<Payload, String, SpanContext, Mono<Payload>>> requestResponseRegistry,
+              Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestChannelRegistry,
+              Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestStreamRegistry,
       MeterRegistry meterRegistry,
       Tracer tracer) {
     this.service = service;
-    this.rr = rr;
-    this.rc = rc;
-    this.rs = rs;
-    this.ff = ff;
+    this.fireAndForgetRegistry = fireAndForgetRegistry;
+    this.requestResponseRegistry = requestResponseRegistry;
+    this.requestStreamRegistry = requestStreamRegistry;
+    this.requestChannelRegistry = requestChannelRegistry;
     this.meterRegistry = meterRegistry;
     this.tracer = tracer;
     this.metrics = new ConcurrentHashMap<>();
     this.tracers = new ConcurrentHashMap<>();
+  }
+
+  @Override
+  public void selfRegister(Map<String, TriFunction<Payload, String, SpanContext, Mono<Void>>> fireAndForgetRegistry,
+Map<String, TriFunction<Payload, String, SpanContext, Mono<Payload>>> requestResponseRegistry,
+        Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestChannelRegistry,
+        Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestStreamRegistry) {
+    requestChannelRegistry.putAll(this.requestChannelRegistry);
+    requestResponseRegistry.putAll(this.requestResponseRegistry);
+    requestStreamRegistry.putAll(this.requestStreamRegistry);
+    fireAndForgetRegistry.putAll(this.fireAndForgetRegistry);
   }
 
   @Override
@@ -122,37 +135,41 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
 
       SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
 
-      return ffContext
-          .ff
-          .apply(input, buf)
-          .transform(
-              new Function<Mono<Void>, Publisher<Void>>() {
-                @Override
-                public Publisher<Void> apply(Mono<Void> voidMono) {
-                  Function<? super Publisher<Payload>, ? extends Publisher<Payload>> function =
-                      getMetric(method);
-                  return Mono.from(function.apply(voidMono.cast(Payload.class))).then();
-                }
-              })
-          .transform(
-              new Function<Mono<Void>, Publisher<Void>>() {
-                @Override
-                public Publisher<Void> apply(Mono<Void> voidMono) {
-                  Function<
-                          SpanContext,
-                          Function<? super Publisher<Payload>, ? extends Publisher<Payload>>>
-                      f1 = getTracer(method);
-                  Function<? super Publisher<Payload>, ? extends Publisher<Payload>> f2 =
-                      f1.apply(spanContext);
-                  return Mono.from(f2.apply(voidMono.cast(Payload.class))).then();
-                }
-              });
+
 
     } catch (Throwable t) {
       return Mono.error(t);
     } finally {
       payload.release();
     }
+  }
+
+  Mono<Void> fnfCall(Payload payload, String route, Server.FFContext ffContext, @Nullable SpanContext spanContext) {
+    return ffContext
+            .ff
+            .apply(input, buf)
+            .transform(
+                    new Function<Mono<Void>, Publisher<Void>>() {
+                      @Override
+                      public Publisher<Void> apply(Mono<Void> voidMono) {
+                        Function<? super Publisher<Payload>, ? extends Publisher<Payload>> function =
+                                getMetric(method);
+                        return Mono.from(function.apply(voidMono.cast(Payload.class))).then();
+                      }
+                    })
+            .transform(
+                    new Function<Mono<Void>, Publisher<Void>>() {
+                      @Override
+                      public Publisher<Void> apply(Mono<Void> voidMono) {
+                        Function<
+                                SpanContext,
+                                Function<? super Publisher<Payload>, ? extends Publisher<Payload>>>
+                                f1 = getTracer(method);
+                        Function<? super Publisher<Payload>, ? extends Publisher<Payload>> f2 =
+                                f1.apply(spanContext);
+                        return Mono.from(f2.apply(voidMono.cast(Payload.class))).then();
+                      }
+                    });
   }
 
   @Override

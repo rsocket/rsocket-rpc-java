@@ -15,6 +15,29 @@
  */
 package io.rsocket.ipc;
 
-import io.rsocket.rpc.RSocketRpcService;
+import io.netty.buffer.ByteBuf;
+import io.opentracing.SpanContext;
+import io.rsocket.Payload;
+import io.rsocket.ResponderRSocket;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-public interface IPCRSocket extends RSocketRpcService {}
+import java.util.Map;
+import java.util.function.BiFunction;
+
+public interface IPCRSocket extends ResponderRSocket {
+    String getService();
+
+    void selfRegister(
+            Map<String, BiFunction<Payload, SpanContext, Mono<Void>>> fireAndForgetRegistry,
+            Map<String, BiFunction<Payload, SpanContext, Mono<Payload>>> requestResponseRegistry,
+            Map<String, BiFunction<Payload, SpanContext, Flux<Payload>>> requestStreamRegistry,
+            Map<String, BiFunction<Flux<Payload>, SpanContext, Flux<Payload>>> requestChannelRegistry);
+
+    Flux<Payload> requestChannel(Payload payload, Flux<Payload> publisher);
+
+    default Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
+        return requestChannel(payload, Flux.from(payloads));
+    }
+}

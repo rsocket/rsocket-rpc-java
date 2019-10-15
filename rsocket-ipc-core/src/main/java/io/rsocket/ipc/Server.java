@@ -17,12 +17,17 @@ package io.rsocket.ipc;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.buffer.ByteBuf;
+import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
-import io.rsocket.ipc.util.TriFunction;
+import io.rsocket.Payload;
+import io.rsocket.ipc.util.BiFunction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
+
+import io.rsocket.ipc.util.TriFunction;
+import io.rsocket.rpc.tracing.Tracing;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -116,12 +121,12 @@ public final class Server {
   }
 
   static class RCContext {
-    final TriFunction<Object, Publisher, ByteBuf, Flux> rc;
+    final BiFunction<Object, Publisher, ByteBuf, Flux> rc;
     final Marshaller marshaller;
     final Unmarshaller unmarshaller;
 
     public RCContext(
-        TriFunction<Object, Publisher, ByteBuf, Flux> rc,
+        BiFunction<Object, Publisher, ByteBuf, Flux> rc,
         Marshaller marshaller,
         Unmarshaller unmarshaller) {
       this.rc = rc;
@@ -160,16 +165,17 @@ public final class Server {
     private MeterRegistry meterRegistry;
     private Tracer tracer;
     private Unmarshaller unmarshaller;
-    private final Map<String, RRContext> rr;
-    private final Map<String, RCContext> rc;
-    private final Map<String, RSContext> rs;
-    private final Map<String, FFContext> ff;
+
+    private final Map<String, TriFunction<ByteBuf, ByteBuf, SpanContext, Mono<Void>>> fireAndForgetRegistry;
+    private final Map<String, BiFunction<ByteBuf, ByteBuf, SpanContext, Mono<Payload>>> requestResponseRegistry;
+    private final Map<String, BiFunction<ByteBuf, ByteBuf, SpanContext, Flux<Payload>>> requestStreamRegistry;
+    private final Map<String, BiFunction<Flux<Payload>, SpanContext, Flux<Payload>>> requestChannelRegistry;
 
     private Builder(String service) {
-      this.rr = new HashMap<>();
-      this.rc = new HashMap<>();
-      this.rs = new HashMap<>();
-      this.ff = new HashMap<>();
+      this.requestResponseRegistry = new HashMap<>();
+      this.requestChannelRegistry = new HashMap<>();
+      this.requestStreamRegistry = new HashMap<>();
+      this.fireAndForgetRegistry = new HashMap<>();
       this.service = service;
     }
 
@@ -278,7 +284,17 @@ public final class Server {
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
       Objects.requireNonNull(rr);
-      this.rr.put(route, new RRContext(rr, marshaller, unmarshaller));
+      this.requestResponseRegistry.put(route, (payload, spanContext) -> {
+        ByteBuf data = payload.sliceData();
+        ByteBuf metadata = pa
+        Object input = unmarshaller.apply(data);
+
+        return rr
+                .apply(input, buf)
+                .map(o -> marshall(o, rrContext.marshaller))
+                .transform(getMetric(method))
+                .transform(getTracer(method).apply(spanContext));
+      });
       return this;
     }
 
