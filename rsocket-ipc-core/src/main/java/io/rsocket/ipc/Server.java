@@ -16,21 +16,32 @@
 package io.rsocket.ipc;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
-import io.rsocket.ipc.util.BiFunction;
+import io.rsocket.ipc.util.IPCChannelFunction;
+import io.rsocket.ipc.util.IPCFireAndForgetFunction;
+import io.rsocket.ipc.util.IPCFunction;
+import io.rsocket.ipc.util.IPCMetricsAwareFireAndForgetFunction;
+import io.rsocket.ipc.util.IPCMetricsAwareRequestChannelFunction;
+import io.rsocket.ipc.util.IPCMetricsAwareRequestResponseFunction;
+import io.rsocket.ipc.util.IPCMetricsAwareRequestStreamFunction;
+import io.rsocket.ipc.util.IPCRequestChannelFunction;
+import io.rsocket.ipc.util.IPCRequestResponseFunction;
+import io.rsocket.ipc.util.IPCRequestStreamFunction;
+import io.rsocket.ipc.util.IPCTracingAndMetricsAwareFireAndForgetFunction;
+import io.rsocket.ipc.util.IPCTracingAndMetricsAwareRequestChannelFunction;
+import io.rsocket.ipc.util.IPCTracingAndMetricsAwareRequestResponseFunction;
+import io.rsocket.ipc.util.IPCTracingAndMetricsAwareRequestStreamFunction;
+import io.rsocket.ipc.util.IPCTracingAwareFireAndForgetFunction;
+import io.rsocket.ipc.util.IPCTracingAwareRequestChannelFunction;
+import io.rsocket.ipc.util.IPCTracingAwareRequestResponseFunction;
+import io.rsocket.ipc.util.IPCTracingAwareRequestStreamFunction;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiFunction;
-
-import io.rsocket.ipc.util.TriFunction;
-import io.rsocket.rpc.tracing.Tracing;
-import org.reactivestreams.Publisher;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @SuppressWarnings("unchecked")
 public final class Server {
@@ -107,57 +118,6 @@ public final class Server {
     IPCRSocket rsocket();
   }
 
-  static class RRContext {
-    final BiFunction<Object, ByteBuf, Mono> rr;
-    final Marshaller marshaller;
-    final Unmarshaller unmarshaller;
-
-    public RRContext(
-        BiFunction<Object, ByteBuf, Mono> rr, Marshaller marshaller, Unmarshaller unmarshaller) {
-      this.rr = rr;
-      this.marshaller = marshaller;
-      this.unmarshaller = unmarshaller;
-    }
-  }
-
-  static class RCContext {
-    final BiFunction<Object, Publisher, ByteBuf, Flux> rc;
-    final Marshaller marshaller;
-    final Unmarshaller unmarshaller;
-
-    public RCContext(
-        BiFunction<Object, Publisher, ByteBuf, Flux> rc,
-        Marshaller marshaller,
-        Unmarshaller unmarshaller) {
-      this.rc = rc;
-      this.marshaller = marshaller;
-      this.unmarshaller = unmarshaller;
-    }
-  }
-
-  static class RSContext {
-    final BiFunction<Object, ByteBuf, Flux> rs;
-    final Marshaller marshaller;
-    final Unmarshaller unmarshaller;
-
-    public RSContext(
-        BiFunction<Object, ByteBuf, Flux> rs, Marshaller marshaller, Unmarshaller unmarshaller) {
-      this.rs = rs;
-      this.marshaller = marshaller;
-      this.unmarshaller = unmarshaller;
-    }
-  }
-
-  static class FFContext {
-    final BiFunction<Object, ByteBuf, Mono<Void>> ff;
-    final Unmarshaller unmarshaller;
-
-    public FFContext(BiFunction<Object, ByteBuf, Mono<Void>> ff, Unmarshaller unmarshaller) {
-      this.ff = ff;
-      this.unmarshaller = unmarshaller;
-    }
-  }
-
   @SuppressWarnings("unchecked")
   private static class Builder implements P, U, H, M, T {
     private final String service;
@@ -166,10 +126,10 @@ public final class Server {
     private Tracer tracer;
     private Unmarshaller unmarshaller;
 
-    private final Map<String, TriFunction<ByteBuf, ByteBuf, SpanContext, Mono<Void>>> fireAndForgetRegistry;
-    private final Map<String, BiFunction<ByteBuf, ByteBuf, SpanContext, Mono<Payload>>> requestResponseRegistry;
-    private final Map<String, BiFunction<ByteBuf, ByteBuf, SpanContext, Flux<Payload>>> requestStreamRegistry;
-    private final Map<String, BiFunction<Flux<Payload>, SpanContext, Flux<Payload>>> requestChannelRegistry;
+    private final Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry;
+    private final Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry;
+    private final Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry;
+    private final Map<String, IPCChannelFunction> requestChannelRegistry;
 
     private Builder(String service) {
       this.requestResponseRegistry = new HashMap<>();
@@ -270,7 +230,17 @@ public final class Server {
       Objects.requireNonNull(route);
       Objects.requireNonNull(ff);
       Objects.requireNonNull(unmarshaller);
-      this.ff.put(route, new FFContext(ff, unmarshaller));
+
+      if (tracer == null && meterRegistry == null) {
+        this.fireAndForgetRegistry.put(route, new IPCFireAndForgetFunction(service + "." + route, unmarshaller, marshaller, ff));
+      } else if (tracer != null && meterRegistry != null) {
+        this.fireAndForgetRegistry.put(route, new IPCTracingAndMetricsAwareFireAndForgetFunction(service + "." + route, unmarshaller, marshaller, ff, tracer, meterRegistry));
+      } else if (tracer != null) {
+        this.fireAndForgetRegistry.put(route, new IPCTracingAwareFireAndForgetFunction(service + "." + route, unmarshaller, marshaller, ff, tracer));
+      } else {
+        this.fireAndForgetRegistry.put(route, new IPCMetricsAwareFireAndForgetFunction(service + "." + route, unmarshaller, marshaller, ff, meterRegistry));
+      }
+
       return this;
     }
 
@@ -284,17 +254,17 @@ public final class Server {
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
       Objects.requireNonNull(rr);
-      this.requestResponseRegistry.put(route, (payload, spanContext) -> {
-        ByteBuf data = payload.sliceData();
-        ByteBuf metadata = pa
-        Object input = unmarshaller.apply(data);
 
-        return rr
-                .apply(input, buf)
-                .map(o -> marshall(o, rrContext.marshaller))
-                .transform(getMetric(method))
-                .transform(getTracer(method).apply(spanContext));
-      });
+      if (tracer == null && meterRegistry == null) {
+        this.requestResponseRegistry.put(route, new IPCRequestResponseFunction(service + "." + route, unmarshaller, marshaller, rr));
+      } else if (tracer != null && meterRegistry != null) {
+        this.requestResponseRegistry.put(route, new IPCTracingAndMetricsAwareRequestResponseFunction(service + "." + route, unmarshaller, marshaller, rr, tracer, meterRegistry));
+      } else if (tracer != null) {
+        this.requestResponseRegistry.put(route, new IPCTracingAwareRequestResponseFunction(service + "." + route, unmarshaller, marshaller, rr, tracer));
+      } else {
+        this.requestResponseRegistry.put(route, new IPCMetricsAwareRequestResponseFunction(service + "." + route, unmarshaller, marshaller, rr, meterRegistry));
+      }
+
       return this;
     }
 
@@ -308,7 +278,15 @@ public final class Server {
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
       Objects.requireNonNull(rc);
-      this.rc.put(route, new RCContext(rc, marshaller, unmarshaller));
+      if (tracer == null && meterRegistry == null) {
+        this.requestChannelRegistry.put(route, new IPCRequestChannelFunction(service + "." + route, unmarshaller, marshaller, rc));
+      } else if (tracer != null && meterRegistry != null) {
+        this.requestChannelRegistry.put(route, new IPCTracingAndMetricsAwareRequestChannelFunction(service + "." + route, unmarshaller, marshaller, rc, tracer, meterRegistry));
+      } else if (tracer != null) {
+        this.requestChannelRegistry.put(route, new IPCTracingAwareRequestChannelFunction(service + "." + route, unmarshaller, marshaller, rc, tracer));
+      } else {
+        this.requestChannelRegistry.put(route, new IPCMetricsAwareRequestChannelFunction(service + "." + route, unmarshaller, marshaller, rc, meterRegistry));
+      }
       return this;
     }
 
@@ -322,13 +300,21 @@ public final class Server {
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
       Objects.requireNonNull(rs);
-      this.rs.put(route, new RSContext(rs, marshaller, unmarshaller));
+      if (tracer == null && meterRegistry == null) {
+        this.requestStreamRegistry.put(route, new IPCRequestStreamFunction(service + "." + route, unmarshaller, marshaller, rs));
+      } else if (tracer != null && meterRegistry != null) {
+        this.requestStreamRegistry.put(route, new IPCTracingAndMetricsAwareRequestStreamFunction(service + "." + route, unmarshaller, marshaller, rs, tracer, meterRegistry));
+      } else if (tracer != null) {
+        this.requestStreamRegistry.put(route, new IPCTracingAwareRequestStreamFunction(service + "." + route, unmarshaller, marshaller, rs, tracer));
+      } else {
+        this.requestStreamRegistry.put(route, new IPCMetricsAwareRequestStreamFunction(service + "." + route, unmarshaller, marshaller, rs, meterRegistry));
+      }
       return this;
     }
 
     @Override
     public IPCRSocket rsocket() {
-      return new IPCServerRSocket(service, rr, rc, rs, ff, meterRegistry, tracer);
+      return new IPCServerRSocket(service, fireAndForgetRegistry, requestResponseRegistry, requestStreamRegistry, requestChannelRegistry, meterRegistry, tracer);
     }
   }
 

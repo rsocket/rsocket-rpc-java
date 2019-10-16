@@ -1,31 +1,26 @@
 package io.rsocket.ipc;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCountUtil;
 import io.opentracing.SpanContext;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.ResponderRSocket;
-import io.rsocket.ipc.util.TriFunction;
-import io.rsocket.rpc.RSocketRpcService;
-import io.rsocket.rpc.exception.ServiceNotFound;
-import io.rsocket.rpc.frames.Metadata;
-import io.rsocket.rpc.tracing.Tracing;
+import io.rsocket.ipc.util.IPCChannelFunction;
+import io.rsocket.ipc.util.IPCFunction;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
 public class RequestHandlingRSocket<T> extends AbstractRSocket implements ResponderRSocket {
 
-  private final Map<String, Handler<Payload, Mono<Void>>> fireAndForgetRegistry = new ConcurrentHashMap<>();
-  private final Map<String, Handler<Payload, Mono<Payload>>> requestResponseRegistry = new ConcurrentHashMap<>();
-  private final Map<String, Handler<Payload, Flux<Payload>>> requestStreamRegistry = new ConcurrentHashMap<>();
-  private final Map<String, Handler<Flux<Payload>, Flux<Payload>>> requestChannelRegistry = new ConcurrentHashMap<>();
+  private final Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry = new ConcurrentHashMap<>();
+  private final Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry = new ConcurrentHashMap<>();
+  private final Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry = new ConcurrentHashMap<>();
+  private final Map<String, IPCChannelFunction> requestChannelRegistry = new ConcurrentHashMap<>();
+
 
   private final MetadataDecoder decoder;
 
@@ -42,16 +37,7 @@ public class RequestHandlingRSocket<T> extends AbstractRSocket implements Respon
   @Override
   public Mono<Void> fireAndForget(Payload payload) {
     try {
-      Mono<Void> response = decoder.decode(payload, (route, spanContext) -> {
-        BiFunction<Payload, SpanContext, Mono<Void>> ffContext = this.fireAndForgetRegistry.get(route);
-
-        if (ffContext == null) {
-          return Mono.error(
-                  new NullPointerException("nothing found for route " + route));
-        }
-
-        return ffContext.apply(payload, spanContext);
-      });
+      Mono<Void> response = decoder.decode(payload, this::doDecodeAndHandleFireAndForget);
 
       payload.release();
 
@@ -60,21 +46,23 @@ public class RequestHandlingRSocket<T> extends AbstractRSocket implements Respon
       payload.release();
       return Mono.error(t);
     }
+  }
+
+  Mono<Void> doDecodeAndHandleFireAndForget(ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) {
+    IPCFunction<Mono<Void>> monoIPCFunction = this.fireAndForgetRegistry.get(route);
+
+    if (monoIPCFunction == null) {
+      return Mono.error(
+              new NullPointerException("nothing found for route " + route));
+    }
+
+    return monoIPCFunction.apply(data, metadata, spanContext);
   }
 
   @Override
   public Mono<Payload> requestResponse(Payload payload) {
     try {
-      Mono<Payload> response = decoder.decode(payload, (route, spanContext) -> {
-        BiFunction<Payload, SpanContext, Mono<Payload>> ffContext = this.requestResponseRegistry.get(route);
-
-        if (ffContext == null) {
-          return Mono.error(
-                  new NullPointerException("nothing found for route " + route));
-        }
-
-        return ffContext.apply(payload, spanContext);
-      });
+      Mono<Payload> response = decoder.decode(payload, this::doDecodeAndHandleRequestResponse);
 
       payload.release();
 
@@ -85,19 +73,21 @@ public class RequestHandlingRSocket<T> extends AbstractRSocket implements Respon
     }
   }
 
+  Mono<Payload> doDecodeAndHandleRequestResponse(ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) {
+    IPCFunction<Mono<Payload>> monoIPCFunction = this.requestResponseRegistry.get(route);
+
+    if (monoIPCFunction == null) {
+      return Mono.error(
+              new NullPointerException("nothing found for route " + route));
+    }
+
+    return monoIPCFunction.apply(data, metadata, spanContext);
+  }
+
   @Override
   public Flux<Payload> requestStream(Payload payload) {
     try {
-      Flux<Payload> response = decoder.decode(payload, (route, spanContext) -> {
-        BiFunction<Payload, SpanContext, Flux<Payload>> ffContext = this.requestStreamRegistry.get(route);
-
-        if (ffContext == null) {
-          return Flux.error(
-                  new NullPointerException("nothing found for route " + route));
-        }
-
-        return ffContext.apply(payload, spanContext);
-      });
+      Flux<Payload> response = decoder.decode(payload, this::doDecodeAndHandleRequestStream);
 
       payload.release();
 
@@ -108,6 +98,17 @@ public class RequestHandlingRSocket<T> extends AbstractRSocket implements Respon
     }
   }
 
+  public Flux<Payload> doDecodeAndHandleRequestStream(ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) {
+    IPCFunction<Flux<Payload>> ffContext = this.requestStreamRegistry.get(route);
+
+    if (ffContext == null) {
+      return Flux.error(
+              new NullPointerException("nothing found for route " + route));
+    }
+
+    return ffContext.apply(data, metadata, spanContext);
+  }
+
   @Override
   public Flux<Payload> requestChannel(Publisher<Payload> payloads) {
     return Flux.from(payloads)
@@ -116,8 +117,8 @@ public class RequestHandlingRSocket<T> extends AbstractRSocket implements Respon
               if (firstSignal.hasValue()) {
                 Payload payload = firstSignal.get();
                 try {
-                  return decoder.decode(payload, (route, spanContext) -> {
-                    BiFunction<Flux<Payload>, SpanContext, Flux<Payload>> ffContext = this.requestChannelRegistry.get(route);
+                  return decoder.decode(payload, (ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) -> {
+                    IPCChannelFunction ffContext = this.requestChannelRegistry.get(route);
 
                     if (ffContext == null) {
                       payload.release();
@@ -125,7 +126,7 @@ public class RequestHandlingRSocket<T> extends AbstractRSocket implements Respon
                               new NullPointerException("nothing found for route " + route));
                     }
 
-                    return ffContext.apply(flux, spanContext);
+                    return ffContext.apply(Flux.from(payloads), data, metadata, spanContext);
                   });
                 } catch (Throwable t) {
                   payload.release();
@@ -141,7 +142,7 @@ public class RequestHandlingRSocket<T> extends AbstractRSocket implements Respon
   public Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
     try {
       return decoder.decode(payload, (data, metadata, route, spanContext) -> {
-        BiFunction<Flux<Payload>, SpanContext, Flux<Payload>> ffContext = this.requestChannelRegistry.get(route);
+        IPCChannelFunction ffContext = this.requestChannelRegistry.get(route);
 
         if (ffContext == null) {
           payload.release();
@@ -149,7 +150,7 @@ public class RequestHandlingRSocket<T> extends AbstractRSocket implements Respon
                   new NullPointerException("nothing found for route " + route));
         }
 
-        return ffContext.apply(Flux.from(payloads), spanContext);
+        return ffContext.apply(Flux.from(payloads), data, metadata, spanContext);
       });
     } catch (Throwable t) {
       payload.release();

@@ -17,9 +17,9 @@ package io.rsocket.ipc;
 
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
+import io.rsocket.ipc.decoders.CompositeMetadataDecoder;
 import io.rsocket.ipc.marshallers.Primitives;
 import io.rsocket.ipc.marshallers.Strings;
-import io.rsocket.rpc.rsocket.RequestHandlingRSocket;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,7 +32,7 @@ import reactor.test.StepVerifier;
 public class IntegrationTest {
   @Test
   public void test() {
-    RequestHandlingRSocket requestHandler = new RequestHandlingRSocket();
+    RequestHandlingRSocket requestHandler = new RequestHandlingRSocket(new CompositeMetadataDecoder());
 
     RSocketFactory.receive()
         .acceptor((setup, sendingSocket) -> Mono.just(requestHandler))

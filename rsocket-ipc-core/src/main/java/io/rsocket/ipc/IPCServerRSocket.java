@@ -16,24 +16,22 @@
 package io.rsocket.ipc;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.netty.buffer.ByteBuf;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
-import io.rsocket.ipc.util.TriFunction;
-import io.rsocket.rpc.frames.Metadata;
+import io.rsocket.ipc.util.IPCChannelFunction;
+import io.rsocket.ipc.util.IPCFunction;
 import io.rsocket.rpc.metrics.Metrics;
 import io.rsocket.rpc.tracing.Tag;
 import io.rsocket.rpc.tracing.Tracing;
-import io.rsocket.util.ByteBufPayload;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.annotation.Nullable;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 @SuppressWarnings("unchecked")
 class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
@@ -75,17 +73,17 @@ class IPCServerRSocket extends AbstractRSocket implements IPCRSocket {
                     Tag.of("rsocket.rpc.version", "ipc")));
   }
 
-  private final Map<String, TriFunction<Payload, String, SpanContext, Mono<Void>>> fireAndForgetRegistry;
-  private final Map<String, TriFunction<Payload, String, SpanContext, Mono<Payload>>> requestResponseRegistry;
-  private final Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestChannelRegistry;
-  private final Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestStreamRegistry;
+  private final Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry;
+  private final Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry;
+  private final Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry;
+  private final Map<String, IPCChannelFunction> requestChannelRegistry;
 
   IPCServerRSocket(
       String service,
-      Map<String, TriFunction<Payload, String, SpanContext, Mono<Void>>> fireAndForgetRegistry,
-Map<String, TriFunction<Payload, String, SpanContext, Mono<Payload>>> requestResponseRegistry,
-              Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestChannelRegistry,
-              Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestStreamRegistry,
+      Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry,
+      Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry,
+      Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry,
+      Map<String, IPCChannelFunction> requestChannelRegistry,
       MeterRegistry meterRegistry,
       Tracer tracer) {
     this.service = service;
@@ -100,10 +98,10 @@ Map<String, TriFunction<Payload, String, SpanContext, Mono<Payload>>> requestRes
   }
 
   @Override
-  public void selfRegister(Map<String, TriFunction<Payload, String, SpanContext, Mono<Void>>> fireAndForgetRegistry,
-Map<String, TriFunction<Payload, String, SpanContext, Mono<Payload>>> requestResponseRegistry,
-        Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestChannelRegistry,
-        Map<String, TriFunction<Payload, String, SpanContext, Flux<Payload>>> requestStreamRegistry) {
+  public void selfRegister(Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry,
+                           Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry,
+                           Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry,
+                           Map<String, IPCChannelFunction> requestChannelRegistry) {
     requestChannelRegistry.putAll(this.requestChannelRegistry);
     requestResponseRegistry.putAll(this.requestResponseRegistry);
     requestStreamRegistry.putAll(this.requestStreamRegistry);
@@ -117,170 +115,21 @@ Map<String, TriFunction<Payload, String, SpanContext, Mono<Payload>>> requestRes
 
   @Override
   public Mono<Void> fireAndForget(Payload payload) {
-    try {
-      ByteBuf data = payload.sliceData();
-      ByteBuf metadata = payload.sliceMetadata();
-
-      ByteBuf buf = Metadata.getMetadata(metadata);
-      String method = Metadata.getMethod(metadata);
-
-      Server.FFContext ffContext = this.ff.get(method);
-
-      if (ffContext == null) {
-        return Mono.error(
-            new NullPointerException("nothing found for service " + service + " method " + method));
-      }
-
-      Object input = ffContext.unmarshaller.apply(data);
-
-      SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
-
-
-
-    } catch (Throwable t) {
-      return Mono.error(t);
-    } finally {
-      payload.release();
-    }
-  }
-
-  Mono<Void> fnfCall(Payload payload, String route, Server.FFContext ffContext, @Nullable SpanContext spanContext) {
-    return ffContext
-            .ff
-            .apply(input, buf)
-            .transform(
-                    new Function<Mono<Void>, Publisher<Void>>() {
-                      @Override
-                      public Publisher<Void> apply(Mono<Void> voidMono) {
-                        Function<? super Publisher<Payload>, ? extends Publisher<Payload>> function =
-                                getMetric(method);
-                        return Mono.from(function.apply(voidMono.cast(Payload.class))).then();
-                      }
-                    })
-            .transform(
-                    new Function<Mono<Void>, Publisher<Void>>() {
-                      @Override
-                      public Publisher<Void> apply(Mono<Void> voidMono) {
-                        Function<
-                                SpanContext,
-                                Function<? super Publisher<Payload>, ? extends Publisher<Payload>>>
-                                f1 = getTracer(method);
-                        Function<? super Publisher<Payload>, ? extends Publisher<Payload>> f2 =
-                                f1.apply(spanContext);
-                        return Mono.from(f2.apply(voidMono.cast(Payload.class))).then();
-                      }
-                    });
+    return Mono.error(new RuntimeException());
   }
 
   @Override
   public Mono<Payload> requestResponse(Payload payload) {
-    try {
-      ByteBuf data = payload.sliceData();
-      ByteBuf metadata = payload.sliceMetadata();
-
-      ByteBuf buf = Metadata.getMetadata(metadata);
-      String method = Metadata.getMethod(metadata);
-      Server.RRContext rrContext = this.rr.get(method);
-
-      if (rrContext == null) {
-        return Mono.error(
-            new NullPointerException("nothing found for service " + service + " method " + method));
-      }
-
-      Object input = rrContext.unmarshaller.apply(data);
-
-      SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
-
-      return rrContext
-          .rr
-          .apply(input, buf)
-          .map(o -> marshall(o, rrContext.marshaller))
-          .transform(getMetric(method))
-          .transform(getTracer(method).apply(spanContext));
-    } catch (Throwable t) {
-      return Mono.error(t);
-    } finally {
-      payload.release();
-    }
+    return Mono.error(new RuntimeException());
   }
 
   @Override
   public Flux<Payload> requestStream(Payload payload) {
-    try {
-      ByteBuf data = payload.sliceData();
-      ByteBuf metadata = payload.sliceMetadata();
-
-      ByteBuf buf = Metadata.getMetadata(metadata);
-      String method = Metadata.getMethod(metadata);
-
-      Server.RSContext rsContext = this.rs.get(method);
-
-      if (rsContext == null) {
-        return Flux.error(
-            new NullPointerException("nothing found for service " + service + " method " + method));
-      }
-
-      Object input = rsContext.unmarshaller.apply(data);
-      SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
-
-      return rsContext
-          .rs
-          .apply(input, buf)
-          .map(o -> marshall(o, rsContext.marshaller))
-          .transform(getMetric(method))
-          .transform(getTracer(method).apply(spanContext));
-
-    } catch (Throwable t) {
-      return Flux.error(t);
-    } finally {
-      payload.release();
-    }
+    return Flux.error(new RuntimeException());
   }
 
   @Override
   public Flux<Payload> requestChannel(Payload payload, Flux<Payload> publisher) {
-    try {
-      ByteBuf data = payload.sliceData();
-      ByteBuf metadata = payload.sliceMetadata();
-
-      ByteBuf buf = Metadata.getMetadata(metadata);
-      String method = Metadata.getMethod(metadata);
-
-      Server.RCContext rcContext = this.rc.get(method);
-
-      if (rcContext == null) {
-        return Flux.error(
-            new NullPointerException("nothing found for service " + service + " method " + method));
-      }
-
-      Object input = rcContext.unmarshaller.apply(data);
-      Flux f =
-          publisher.map(
-              p -> {
-                try {
-                  Object o = rcContext.unmarshaller.apply(p.sliceData());
-                  return o;
-                } finally {
-                  p.release();
-                }
-              });
-
-      SpanContext spanContext = Tracing.deserializeTracingMetadata(tracer, metadata);
-
-      return rcContext
-          .rc
-          .apply(input, f, buf)
-          .map(o -> marshall(o, rcContext.marshaller))
-          .transform(getMetric(method))
-          .transform(getTracer(method).apply(spanContext));
-
-    } catch (Throwable t) {
-      return Flux.error(t);
-    }
-  }
-
-  private Payload marshall(Object o, Marshaller marshaller) {
-    ByteBuf data = marshaller.apply(o);
-    return ByteBufPayload.create(data);
+    return Flux.error(new RuntimeException());
   }
 }
