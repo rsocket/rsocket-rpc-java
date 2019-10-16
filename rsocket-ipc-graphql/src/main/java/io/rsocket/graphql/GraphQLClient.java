@@ -124,24 +124,21 @@ public final class GraphQLClient {
 
     @Override
     public Query<O> query() {
-      Functions.RequestResponse<GraphQLRequest, O> query =
-          (Functions.RequestResponse<GraphQLRequest, O>) client().requestResponse("Query");
+      Functions.RequestResponse query = client().requestResponse("Query");
 
       return query::apply;
     }
 
     @Override
     public Mutate<O> mutate() {
-      Functions.RequestResponse<GraphQLRequest, O> mutate =
-          (Functions.RequestResponse<GraphQLRequest, O>) client().requestResponse("Mutate");
+      Functions.RequestResponse mutate = client().requestResponse("Mutate");
 
       return mutate::apply;
     }
 
     @Override
     public Subscription<O> subscription() {
-      Functions.RequestStream<GraphQLRequest, O> subscription =
-          (Functions.RequestStream<GraphQLRequest, O>) client().requestStream("Subscription");
+      Functions.RequestStream subscription = client().requestStream("Subscription");
 
       return subscription::apply;
     }

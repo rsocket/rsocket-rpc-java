@@ -75,7 +75,7 @@ public class GraphQLIntegrationTest {
 
     requestHandler.withService(service);
 
-    GraphQLClient.Query<GraphQLDataFetchers.Book> bookQuery =
+    GraphQLClient.Query bookQuery =
         GraphQLClient.service("books")
             .rsocket(rsocket)
             .noMeterRegistry()
@@ -85,7 +85,7 @@ public class GraphQLIntegrationTest {
             .query();
 
     GraphQLRequest request = new GraphQLRequest(query, new HashMap<>(), "");
-    GraphQLDataFetchers.Book book = bookQuery.apply(request).block();
+    GraphQLDataFetchers.Book book = (GraphQLDataFetchers.Book) bookQuery.apply(request).block();
     System.out.println(book);
   }
 
