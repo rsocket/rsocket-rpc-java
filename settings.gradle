@@ -1,5 +1,9 @@
 rootProject.name = 'rsocket-rpc-java'
 
+include 'rsocket-ipc-core'
+include 'rsocket-ipc-graphql'
+include 'rsocket-ipc-jackson'
+include 'rsocket-ipc-protobuf'
 include 'rsocket-rpc-core'
 include 'rsocket-rpc-metrics-idl'
 include 'rsocket-rpc-protobuf'
