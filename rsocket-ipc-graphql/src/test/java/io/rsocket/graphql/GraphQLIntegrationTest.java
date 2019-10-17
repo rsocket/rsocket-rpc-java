@@ -13,9 +13,9 @@ import io.netty.buffer.ByteBufInputStream;
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
 import io.rsocket.ipc.IPCRSocket;
+import io.rsocket.ipc.RequestHandlingRSocket;
 import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.ipc.marshallers.Json;
-import io.rsocket.rpc.rsocket.RequestHandlingRSocket;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
 import java.io.*;
@@ -73,7 +73,7 @@ public class GraphQLIntegrationTest {
             .noReadOnlySchema()
             .rsocket();
 
-    requestHandler.withService(service);
+    requestHandler.withEndpoint(service);
 
     GraphQLClient.Query bookQuery =
         GraphQLClient.service("books")

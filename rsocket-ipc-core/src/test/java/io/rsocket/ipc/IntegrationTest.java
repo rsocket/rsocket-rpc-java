@@ -79,7 +79,7 @@ public class IntegrationTest {
                   return Mono.empty();
                 })
             .requestChannel("helloChannel", (s, publisher, byteBuf) -> Flux.just("Hello -> " + s))
-            .rsocket();
+            .toIPCRSocket();
 
     requestHandler.withEndpoint(service);
 

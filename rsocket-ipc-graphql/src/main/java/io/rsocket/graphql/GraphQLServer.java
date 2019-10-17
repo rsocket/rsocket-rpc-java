@@ -164,7 +164,7 @@ public final class GraphQLServer {
           .requestStream(
               "Subscription",
               new GraphQLServerRequestStream(dataLoadRegistry, instrumentation, schema))
-          .rsocket();
+          .toIPCRSocket();
     }
 
     @Override
