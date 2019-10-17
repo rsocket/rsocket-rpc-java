@@ -14,39 +14,44 @@ import reactor.core.publisher.Flux;
 
 public class IPCMetricsAwareRequestChannelFunction implements IPCChannelFunction {
 
-    final String route;
-    final Unmarshaller unmarshaller;
-    final Marshaller marshaller;
-    final Functions.HandleRequestHandle rc;
-    final MeterRegistry meterRegistry;
+  final String route;
+  final Unmarshaller unmarshaller;
+  final Marshaller marshaller;
+  final Functions.HandleRequestHandle rc;
+  final MeterRegistry meterRegistry;
 
-    public IPCMetricsAwareRequestChannelFunction(String route, Unmarshaller unmarshaller, Marshaller marshaller, Functions.HandleRequestHandle rc, MeterRegistry meterRegistry) {
-        this.route = route;
-        this.unmarshaller = unmarshaller;
-        this.marshaller = marshaller;
-        this.rc = rc;
-        this.meterRegistry = meterRegistry;
-    }
+  public IPCMetricsAwareRequestChannelFunction(
+      String route,
+      Unmarshaller unmarshaller,
+      Marshaller marshaller,
+      Functions.HandleRequestHandle rc,
+      MeterRegistry meterRegistry) {
+    this.route = route;
+    this.unmarshaller = unmarshaller;
+    this.marshaller = marshaller;
+    this.rc = rc;
+    this.meterRegistry = meterRegistry;
+  }
 
-    @Override
-    public Flux<Payload> apply(Flux<Payload> source, ByteBuf data, ByteBuf metadata, SpanContext context) {
-        return rc
-                .apply(
-                        unmarshaller.apply(data),
-                        source.map(p -> {
-                            try {
-                                ByteBuf dd = p.sliceData();
-                                Object result = unmarshaller.apply(dd);
-                                p.release();
-                                return result;
-                            } catch (Throwable t) {
-                                p.release();
-                                throw Exceptions.propagate(t);
-                            }
-                        }),
-                        metadata
-                )
-                .map(o -> ByteBufPayload.create(marshaller.apply(o)))
-                .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
-    }
+  @Override
+  public Flux<Payload> apply(
+      Flux<Payload> source, ByteBuf data, ByteBuf metadata, SpanContext context) {
+    return rc.apply(
+            unmarshaller.apply(data),
+            source.map(
+                p -> {
+                  try {
+                    ByteBuf dd = p.sliceData();
+                    Object result = unmarshaller.apply(dd);
+                    p.release();
+                    return result;
+                  } catch (Throwable t) {
+                    p.release();
+                    throw Exceptions.propagate(t);
+                  }
+                }),
+            metadata)
+        .map(o -> ByteBufPayload.create(marshaller.apply(o)))
+        .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
+  }
 }

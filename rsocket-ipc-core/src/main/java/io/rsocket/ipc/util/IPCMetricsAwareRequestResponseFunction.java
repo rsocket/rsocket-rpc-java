@@ -13,26 +13,30 @@ import reactor.core.publisher.Mono;
 
 public class IPCMetricsAwareRequestResponseFunction implements IPCFunction<Mono<Payload>> {
 
-    final String route;
-    final Unmarshaller unmarshaller;
-    final Marshaller marshaller;
-    final Functions.RequestResponse rr;
-    final MeterRegistry meterRegistry;
+  final String route;
+  final Unmarshaller unmarshaller;
+  final Marshaller marshaller;
+  final Functions.RequestResponse rr;
+  final MeterRegistry meterRegistry;
 
-    public IPCMetricsAwareRequestResponseFunction(String route, Unmarshaller unmarshaller, Marshaller marshaller, Functions.RequestResponse rr, MeterRegistry meterRegistry) {
-        this.route = route;
-        this.unmarshaller = unmarshaller;
-        this.marshaller = marshaller;
-        this.rr = rr;
-        this.meterRegistry = meterRegistry;
-    }
+  public IPCMetricsAwareRequestResponseFunction(
+      String route,
+      Unmarshaller unmarshaller,
+      Marshaller marshaller,
+      Functions.RequestResponse rr,
+      MeterRegistry meterRegistry) {
+    this.route = route;
+    this.unmarshaller = unmarshaller;
+    this.marshaller = marshaller;
+    this.rr = rr;
+    this.meterRegistry = meterRegistry;
+  }
 
-    @Override
-    public Mono<Payload> apply(ByteBuf data, ByteBuf metadata, SpanContext context) {
-        Object input = unmarshaller.apply(data);
-        return rr
-                .apply(input, metadata)
-                .map(o -> ByteBufPayload.create(marshaller.apply(o)))
-                .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
-    }
+  @Override
+  public Mono<Payload> apply(ByteBuf data, ByteBuf metadata, SpanContext context) {
+    Object input = unmarshaller.apply(data);
+    return rr.apply(input, metadata)
+        .map(o -> ByteBufPayload.create(marshaller.apply(o)))
+        .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
+  }
 }

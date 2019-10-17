@@ -12,36 +12,40 @@ import reactor.core.publisher.Flux;
 
 public class IPCRequestChannelFunction implements IPCChannelFunction {
 
-    final String route;
-    final Unmarshaller unmarshaller;
-    final Marshaller marshaller;
-    final Functions.HandleRequestHandle rc;
+  final String route;
+  final Unmarshaller unmarshaller;
+  final Marshaller marshaller;
+  final Functions.HandleRequestHandle rc;
 
-    public IPCRequestChannelFunction(String route, Unmarshaller unmarshaller, Marshaller marshaller, Functions.HandleRequestHandle rc) {
-        this.route = route;
-        this.unmarshaller = unmarshaller;
-        this.marshaller = marshaller;
-        this.rc = rc;
-    }
+  public IPCRequestChannelFunction(
+      String route,
+      Unmarshaller unmarshaller,
+      Marshaller marshaller,
+      Functions.HandleRequestHandle rc) {
+    this.route = route;
+    this.unmarshaller = unmarshaller;
+    this.marshaller = marshaller;
+    this.rc = rc;
+  }
 
-    @Override
-    public Flux<Payload> apply(Flux<Payload> source, ByteBuf data, ByteBuf metadata, SpanContext context) {
-        return rc
-                .apply(
-                        unmarshaller.apply(data),
-                        source.map(p -> {
-                            try {
-                                ByteBuf dd = p.sliceData();
-                                Object result = unmarshaller.apply(dd);
-                                p.release();
-                                return result;
-                            } catch (Throwable t) {
-                                p.release();
-                                throw Exceptions.propagate(t);
-                            }
-                        }),
-                        metadata
-                )
-                .map(o -> ByteBufPayload.create(marshaller.apply(o)));
-    }
+  @Override
+  public Flux<Payload> apply(
+      Flux<Payload> source, ByteBuf data, ByteBuf metadata, SpanContext context) {
+    return rc.apply(
+            unmarshaller.apply(data),
+            source.map(
+                p -> {
+                  try {
+                    ByteBuf dd = p.sliceData();
+                    Object result = unmarshaller.apply(dd);
+                    p.release();
+                    return result;
+                  } catch (Throwable t) {
+                    p.release();
+                    throw Exceptions.propagate(t);
+                  }
+                }),
+            metadata)
+        .map(o -> ByteBufPayload.create(marshaller.apply(o)));
+  }
 }

@@ -17,26 +17,15 @@ package io.rsocket.ipc;
 
 import io.rsocket.Payload;
 import io.rsocket.ResponderRSocket;
-import io.rsocket.ipc.util.IPCChannelFunction;
-import io.rsocket.ipc.util.IPCFunction;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
-import java.util.Map;
+public interface IPCRSocket extends ResponderRSocket, SelfRegistrable {
+  String getService();
 
-public interface IPCRSocket extends ResponderRSocket {
-    String getService();
+  Flux<Payload> requestChannel(Payload payload, Flux<Payload> publisher);
 
-    void selfRegister(
-            Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry,
-            Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry,
-            Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry,
-            Map<String, IPCChannelFunction> requestChannelRegistry);
-
-    Flux<Payload> requestChannel(Payload payload, Flux<Payload> publisher);
-
-    default Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
-        return requestChannel(payload, Flux.from(payloads));
-    }
+  default Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
+    return requestChannel(payload, Flux.from(payloads));
+  }
 }

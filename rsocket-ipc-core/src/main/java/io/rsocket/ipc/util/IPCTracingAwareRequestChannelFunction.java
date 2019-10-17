@@ -15,44 +15,51 @@ import reactor.core.publisher.Flux;
 
 public class IPCTracingAwareRequestChannelFunction implements IPCChannelFunction {
 
-    final String route;
-    final Unmarshaller unmarshaller;
-    final Marshaller marshaller;
-    final Functions.HandleRequestHandle rs;
-    final Tracer tracer;
+  final String route;
+  final Unmarshaller unmarshaller;
+  final Marshaller marshaller;
+  final Functions.HandleRequestHandle rs;
+  final Tracer tracer;
 
-    public IPCTracingAwareRequestChannelFunction(String route, Unmarshaller unmarshaller, Marshaller marshaller, Functions.HandleRequestHandle rs, Tracer tracer) {
-        this.route = route;
-        this.unmarshaller = unmarshaller;
-        this.marshaller = marshaller;
-        this.rs = rs;
-        this.tracer = tracer;
-    }
+  public IPCTracingAwareRequestChannelFunction(
+      String route,
+      Unmarshaller unmarshaller,
+      Marshaller marshaller,
+      Functions.HandleRequestHandle rs,
+      Tracer tracer) {
+    this.route = route;
+    this.unmarshaller = unmarshaller;
+    this.marshaller = marshaller;
+    this.rs = rs;
+    this.tracer = tracer;
+  }
 
-    @Override
-    public Flux<Payload> apply(Flux<Payload> source, ByteBuf data, ByteBuf metadata, SpanContext context) {
-        return rs
-                .apply(
-                        unmarshaller.apply(data),
-                        source.map(p -> {
-                            try {
-                                ByteBuf dd = p.sliceData();
-                                Object result = unmarshaller.apply(dd);
-                                p.release();
-                                return result;
-                            } catch (Throwable t) {
-                                p.release();
-                                throw Exceptions.propagate(t);
-                            }
-                        }),
-                        metadata
-                )
-                .map(o -> ByteBufPayload.create(marshaller.apply(o)))
-                .transform(Tracing.traceAsChild(
-                        tracer,
-                        route,
-                        Tag.of("rsocket.route", route),
-                        Tag.of("rsocket.ipc.role", "server"),
-                        Tag.of("rsocket.ipc.version", "ipc")).apply(context));
-    }
+  @Override
+  public Flux<Payload> apply(
+      Flux<Payload> source, ByteBuf data, ByteBuf metadata, SpanContext context) {
+    return rs.apply(
+            unmarshaller.apply(data),
+            source.map(
+                p -> {
+                  try {
+                    ByteBuf dd = p.sliceData();
+                    Object result = unmarshaller.apply(dd);
+                    p.release();
+                    return result;
+                  } catch (Throwable t) {
+                    p.release();
+                    throw Exceptions.propagate(t);
+                  }
+                }),
+            metadata)
+        .map(o -> ByteBufPayload.create(marshaller.apply(o)))
+        .transform(
+            Tracing.traceAsChild(
+                    tracer,
+                    route,
+                    Tag.of("rsocket.route", route),
+                    Tag.of("rsocket.ipc.role", "server"),
+                    Tag.of("rsocket.ipc.version", "ipc"))
+                .apply(context));
+  }
 }

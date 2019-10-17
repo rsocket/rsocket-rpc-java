@@ -13,26 +13,30 @@ import reactor.core.publisher.Flux;
 
 public class IPCMetricsAwareRequestStreamFunction implements IPCFunction<Flux<Payload>> {
 
-    final String route;
-    final Unmarshaller unmarshaller;
-    final Marshaller marshaller;
-    final Functions.RequestStream rs;
-    final MeterRegistry meterRegistry;
+  final String route;
+  final Unmarshaller unmarshaller;
+  final Marshaller marshaller;
+  final Functions.RequestStream rs;
+  final MeterRegistry meterRegistry;
 
-    public IPCMetricsAwareRequestStreamFunction(String route, Unmarshaller unmarshaller, Marshaller marshaller, Functions.RequestStream rs, MeterRegistry meterRegistry) {
-        this.route = route;
-        this.unmarshaller = unmarshaller;
-        this.marshaller = marshaller;
-        this.rs = rs;
-        this.meterRegistry = meterRegistry;
-    }
+  public IPCMetricsAwareRequestStreamFunction(
+      String route,
+      Unmarshaller unmarshaller,
+      Marshaller marshaller,
+      Functions.RequestStream rs,
+      MeterRegistry meterRegistry) {
+    this.route = route;
+    this.unmarshaller = unmarshaller;
+    this.marshaller = marshaller;
+    this.rs = rs;
+    this.meterRegistry = meterRegistry;
+  }
 
-    @Override
-    public Flux<Payload> apply(ByteBuf data, ByteBuf metadata, SpanContext context) {
-        Object input = unmarshaller.apply(data);
-        return rs
-                .apply(input, metadata)
-                .map(o -> ByteBufPayload.create(marshaller.apply(o)))
-                .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
-    }
+  @Override
+  public Flux<Payload> apply(ByteBuf data, ByteBuf metadata, SpanContext context) {
+    Object input = unmarshaller.apply(data);
+    return rs.apply(input, metadata)
+        .map(o -> ByteBufPayload.create(marshaller.apply(o)))
+        .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
+  }
 }

@@ -32,7 +32,8 @@ import reactor.test.StepVerifier;
 public class IntegrationTest {
   @Test
   public void test() {
-    RequestHandlingRSocket requestHandler = new RequestHandlingRSocket(new CompositeMetadataDecoder());
+    RequestHandlingRSocket requestHandler =
+        new RequestHandlingRSocket(new CompositeMetadataDecoder());
 
     RSocketFactory.receive()
         .acceptor((setup, sendingSocket) -> Mono.just(requestHandler))
@@ -80,7 +81,7 @@ public class IntegrationTest {
             .requestChannel("helloChannel", (s, publisher, byteBuf) -> Flux.just("Hello -> " + s))
             .rsocket();
 
-    requestHandler.withService(service);
+    requestHandler.withEndpoint(service);
 
     Client<CharSequence, String> helloService =
         Client.service("HelloService")

@@ -5,5 +5,5 @@ import io.netty.buffer.ByteBuf;
 @FunctionalInterface
 public interface MetadataEncoder<T> {
 
-    ByteBuf encode(T t);
+  ByteBuf encode(T t);
 }

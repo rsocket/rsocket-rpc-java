@@ -5,5 +5,5 @@ import io.opentracing.SpanContext;
 
 public interface IPCFunction<RESULT> {
 
-    RESULT apply(ByteBuf data, ByteBuf metadata, SpanContext context);
+  RESULT apply(ByteBuf data, ByteBuf metadata, SpanContext context);
 }

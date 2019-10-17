@@ -11,23 +11,22 @@ import reactor.core.publisher.Flux;
 
 public class IPCRequestStreamFunction implements IPCFunction<Flux<Payload>> {
 
-    final String route;
-    final Unmarshaller unmarshaller;
-    final Marshaller marshaller;
-    final Functions.RequestStream rs;
+  final String route;
+  final Unmarshaller unmarshaller;
+  final Marshaller marshaller;
+  final Functions.RequestStream rs;
 
-    public IPCRequestStreamFunction(String route, Unmarshaller unmarshaller, Marshaller marshaller, Functions.RequestStream rs) {
-        this.route = route;
-        this.unmarshaller = unmarshaller;
-        this.marshaller = marshaller;
-        this.rs = rs;
-    }
+  public IPCRequestStreamFunction(
+      String route, Unmarshaller unmarshaller, Marshaller marshaller, Functions.RequestStream rs) {
+    this.route = route;
+    this.unmarshaller = unmarshaller;
+    this.marshaller = marshaller;
+    this.rs = rs;
+  }
 
-    @Override
-    public Flux<Payload> apply(ByteBuf data, ByteBuf metadata, SpanContext context) {
-        Object input = unmarshaller.apply(data);
-        return rs
-                .apply(input, metadata)
-                .map(o -> ByteBufPayload.create(marshaller.apply(o)));
-    }
+  @Override
+  public Flux<Payload> apply(ByteBuf data, ByteBuf metadata, SpanContext context) {
+    Object input = unmarshaller.apply(data);
+    return rs.apply(input, metadata).map(o -> ByteBufPayload.create(marshaller.apply(o)));
+  }
 }
