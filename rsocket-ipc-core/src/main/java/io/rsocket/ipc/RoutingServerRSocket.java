@@ -94,7 +94,7 @@ class RoutingServerRSocket extends AbstractRSocket implements ResponderRSocket {
   }
 
   Mono<Void> doDecodeAndHandleFireAndForget(
-      ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) {
+      ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) throws Exception {
     IPCFunction<Mono<Void>> monoIPCFunction = this.fireAndForgetRegistry.get(route);
 
     if (monoIPCFunction == null) {
@@ -119,7 +119,7 @@ class RoutingServerRSocket extends AbstractRSocket implements ResponderRSocket {
   }
 
   Mono<Payload> doDecodeAndHandleRequestResponse(
-      ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) {
+      ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) throws Exception {
     IPCFunction<Mono<Payload>> monoIPCFunction = this.requestResponseRegistry.get(route);
 
     if (monoIPCFunction == null) {
@@ -144,7 +144,7 @@ class RoutingServerRSocket extends AbstractRSocket implements ResponderRSocket {
   }
 
   public Flux<Payload> doDecodeAndHandleRequestStream(
-      ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) {
+      ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext) throws Exception {
     IPCFunction<Flux<Payload>> ffContext = this.requestStreamRegistry.get(route);
 
     if (ffContext == null) {
@@ -173,7 +173,7 @@ class RoutingServerRSocket extends AbstractRSocket implements ResponderRSocket {
                               new NullPointerException("nothing found for route " + route));
                         }
 
-                        return ffContext.apply(Flux.from(payloads), data, metadata, spanContext);
+                        return ffContext.apply(flux, data, metadata, spanContext);
                       });
                 } catch (Throwable t) {
                   payload.release();

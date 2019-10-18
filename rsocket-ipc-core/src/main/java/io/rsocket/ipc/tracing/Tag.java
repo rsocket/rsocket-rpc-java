@@ -1,6 +1,5 @@
-package io.rsocket.rpc.tracing;
+package io.rsocket.ipc.tracing;
 
-@Deprecated
 public interface Tag {
   static Tag of(String key, String value) {
     return new ImmutableTag(key, value);

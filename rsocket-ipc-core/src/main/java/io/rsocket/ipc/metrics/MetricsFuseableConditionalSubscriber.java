@@ -1,4 +1,4 @@
-package io.rsocket.rpc.metrics;
+package io.rsocket.ipc.metrics;
 
 import static reactor.core.Fuseable.ASYNC;
 
@@ -7,17 +7,16 @@ import io.micrometer.core.instrument.Timer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.reactivestreams.Subscription;
-import reactor.core.CoreSubscriber;
 import reactor.core.Fuseable;
+import reactor.core.Fuseable.ConditionalSubscriber;
 import reactor.core.Fuseable.QueueSubscription;
 import reactor.core.publisher.Operators;
 import reactor.util.annotation.Nullable;
 import reactor.util.context.Context;
 
-@Deprecated
-public class MetricsFuseableSubscriber<T> extends AtomicBoolean
-    implements QueueSubscription<T>, CoreSubscriber<T> {
-  private final CoreSubscriber<? super T> actual;
+public class MetricsFuseableConditionalSubscriber<T> extends AtomicBoolean
+    implements QueueSubscription<T>, ConditionalSubscriber<T> {
+  private final ConditionalSubscriber<? super T> actual;
   private final Counter next, complete, error, cancelled;
   private final Timer timer;
 
@@ -26,8 +25,8 @@ public class MetricsFuseableSubscriber<T> extends AtomicBoolean
 
   private long start;
 
-  MetricsFuseableSubscriber(
-      CoreSubscriber<? super T> actual,
+  MetricsFuseableConditionalSubscriber(
+      ConditionalSubscriber<? super T> actual,
       Counter next,
       Counter complete,
       Counter error,
@@ -60,6 +59,12 @@ public class MetricsFuseableSubscriber<T> extends AtomicBoolean
       next.increment();
       actual.onNext(t);
     }
+  }
+
+  @Override
+  public boolean tryOnNext(T t) {
+    next.increment();
+    return actual.tryOnNext(t);
   }
 
   @Override

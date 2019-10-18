@@ -1,4 +1,4 @@
-package io.rsocket.rpc.metrics;
+package io.rsocket.ipc.metrics;
 
 import static reactor.core.Fuseable.ASYNC;
 
@@ -14,7 +14,6 @@ import reactor.core.publisher.Operators;
 import reactor.util.annotation.Nullable;
 import reactor.util.context.Context;
 
-@Deprecated
 public class MetricsFuseableSubscriber<T> extends AtomicBoolean
     implements QueueSubscription<T>, CoreSubscriber<T> {
   private final CoreSubscriber<? super T> actual;

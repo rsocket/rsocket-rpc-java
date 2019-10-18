@@ -7,10 +7,10 @@ import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
 import io.rsocket.ipc.MetadataDecoder;
+import io.rsocket.ipc.frames.Metadata;
+import io.rsocket.ipc.tracing.Tracing;
 import io.rsocket.metadata.CompositeMetadata;
 import io.rsocket.metadata.WellKnownMimeType;
-import io.rsocket.rpc.frames.Metadata;
-import io.rsocket.rpc.tracing.Tracing;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 
@@ -31,7 +31,7 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
   }
 
   @Override
-  public <T> T decode(Payload payload, Handler<T> transformer) {
+  public <T> T decode(Payload payload, Handler<T> transformer) throws Exception {
     ByteBuf metadata = payload.sliceMetadata();
 
     ByteBuf meta = null;

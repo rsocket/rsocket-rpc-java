@@ -1,11 +1,10 @@
-package io.rsocket.rpc.tracing;
+package io.rsocket.ipc.tracing;
 
 import static java.util.Objects.requireNonNull;
 
 import io.micrometer.core.lang.Nullable;
 import java.util.Objects;
 
-@Deprecated
 class ImmutableTag implements Tag {
   private String key;
   private String value;

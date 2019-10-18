@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.rsocket.rpc.tracing;
+package io.rsocket.ipc.tracing;
 
 import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;
@@ -22,12 +22,11 @@ import reactor.core.Fuseable;
 
 /**
  * A {@link SpanSubscription} is a {@link Subscription} that fakes being {@link Fuseable}
- * (implementing {@link reactor.core.Fuseable.QueueSubscription} with default no-op methods and
- * always negotiating fusion to be {@link Fuseable#NONE}).
+ * (implementing {@link Fuseable.QueueSubscription} with default no-op methods and always
+ * negotiating fusion to be {@link Fuseable#NONE}).
  *
  * @author Marcin Grzejszczak
  */
-@Deprecated
 interface SpanSubscription<T>
     extends Subscription, CoreSubscriber<T>, Fuseable.QueueSubscription<T> {
 

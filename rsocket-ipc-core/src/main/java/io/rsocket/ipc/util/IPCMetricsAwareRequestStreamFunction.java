@@ -7,7 +7,7 @@ import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
 import io.rsocket.ipc.Unmarshaller;
-import io.rsocket.rpc.metrics.Metrics;
+import io.rsocket.ipc.metrics.Metrics;
 import io.rsocket.util.ByteBufPayload;
 import reactor.core.publisher.Flux;
 

@@ -6,7 +6,7 @@ import io.opentracing.SpanContext;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
 import io.rsocket.ipc.Unmarshaller;
-import io.rsocket.rpc.metrics.Metrics;
+import io.rsocket.ipc.metrics.Metrics;
 import reactor.core.publisher.Mono;
 
 public class IPCMetricsAwareFireAndForgetFunction implements IPCFunction<Mono<Void>> {

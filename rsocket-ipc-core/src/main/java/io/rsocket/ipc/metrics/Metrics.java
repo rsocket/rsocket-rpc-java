@@ -1,12 +1,15 @@
-package io.rsocket.rpc.metrics;
+package io.rsocket.ipc.metrics;
 
-import io.micrometer.core.instrument.*;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.Timer;
 import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.Fuseable;
 import reactor.core.publisher.Operators;
 
-@Deprecated
 public class Metrics {
   Metrics() {}
 

@@ -7,9 +7,10 @@ import io.rsocket.Payload;
 @FunctionalInterface
 public interface MetadataDecoder {
 
-  <RESULT> RESULT decode(Payload payload, Handler<RESULT> transformer);
+  <RESULT> RESULT decode(Payload payload, Handler<RESULT> transformer) throws Exception;
 
   interface Handler<RESULT> {
-    RESULT handleAndReply(ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext);
+    RESULT handleAndReply(ByteBuf data, ByteBuf metadata, String route, SpanContext spanContext)
+        throws Exception;
   }
 }

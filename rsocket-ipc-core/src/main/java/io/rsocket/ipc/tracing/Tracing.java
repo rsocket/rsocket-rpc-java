@@ -1,4 +1,4 @@
-package io.rsocket.rpc.tracing;
+package io.rsocket.ipc.tracing;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -8,7 +8,7 @@ import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
-import io.rsocket.rpc.frames.Metadata;
+import io.rsocket.ipc.frames.Metadata;
 import io.rsocket.util.NumberUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -17,7 +17,6 @@ import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Operators;
 
-@Deprecated
 public class Tracing {
   private Tracing() {}
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.rsocket.rpc.tracing;
+package io.rsocket.ipc.tracing;
 
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -38,7 +38,6 @@ import reactor.util.context.Context;
  * @author Marcin Grzejszczak
  * @since 2.0.0
  */
-@Deprecated
 final class SpanSubscriber<T> extends AtomicBoolean implements SpanSubscription<T> {
 
   private static final Logger log = Loggers.getLogger(SpanSubscriber.class);

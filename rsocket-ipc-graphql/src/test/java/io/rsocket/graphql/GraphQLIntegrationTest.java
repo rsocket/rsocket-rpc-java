@@ -71,7 +71,7 @@ public class GraphQLIntegrationTest {
             .defaultInstrumentation()
             .schema(getGraphQLSchema())
             .noReadOnlySchema()
-            .rsocket();
+            .toIPCRSocket();
 
     requestHandler.withEndpoint(service);
 

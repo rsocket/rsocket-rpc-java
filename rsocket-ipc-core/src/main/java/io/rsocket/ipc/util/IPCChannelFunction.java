@@ -7,5 +7,6 @@ import reactor.core.publisher.Flux;
 
 public interface IPCChannelFunction {
 
-  Flux<Payload> apply(Flux<Payload> source, ByteBuf data, ByteBuf metadata, SpanContext context);
+  Flux<Payload> apply(Flux<Payload> source, ByteBuf data, ByteBuf metadata, SpanContext context)
+      throws Exception;
 }

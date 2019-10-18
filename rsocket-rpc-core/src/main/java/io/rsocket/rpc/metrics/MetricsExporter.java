@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
+@Deprecated
 public class MetricsExporter implements Disposable, Runnable {
   private final Logger logger = LoggerFactory.getLogger(MetricsExporter.class);
   private final MetricsSnapshotHandler handler;

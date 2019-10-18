@@ -5,8 +5,8 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.opentracing.SpanContext;
 import io.rsocket.ipc.MetadataEncoder;
-import io.rsocket.rpc.frames.Metadata;
-import io.rsocket.rpc.tracing.Tracing;
+import io.rsocket.ipc.frames.Metadata;
+import io.rsocket.ipc.tracing.Tracing;
 import java.util.HashMap;
 import java.util.Map;
 

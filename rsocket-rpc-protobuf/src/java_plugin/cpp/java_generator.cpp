@@ -76,6 +76,10 @@ static inline string MethodFieldName(const MethodDescriptor* method) {
   return "METHOD_" + ToAllUpperCase(method->name());
 }
 
+static inline string RouteFieldName(const MethodDescriptor* method) {
+  return "ROUTE_" + ToAllUpperCase(method->name());
+}
+
 static inline string MessageFullJavaName(const Descriptor* desc) {
   return google::protobuf::compiler::java::ClassName(desc);
 }
@@ -302,9 +306,11 @@ static void PrintInterface(const ServiceDescriptor* service,
   for (int i = 0; i < service->method_count(); ++i) {
     const MethodDescriptor* method = service->method(i);
     (*vars)["method_field_name"] = MethodFieldName(method);
+    (*vars)["route_field_name"] = RouteFieldName(method);
     (*vars)["method_name"] = method->name();
 
     p->Print(*vars, "String $method_field_name$ = \"$method_name$\";\n");
+    p->Print(*vars, "String $route_field_name$ = $service_field_name$ + \".\" + $method_field_name$;\n");
   }
 
   // RPC methods
@@ -935,6 +941,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "private final $service_name$ service;\n"
+      "private final $MetadataDecoder$ metadataDecoder;\n"
       "private final $Tracer$ tracer;\n");
 
   // RPC metrics
@@ -999,46 +1006,46 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "@$Inject$\n"
-      "public $server_class_name$($service_name$ service, $Optional$<$MeterRegistry$> registry, $Optional$<$Tracer$> tracer) {\n");
+      "public $server_class_name$($service_name$ service, $Optional$<$MetadataDecoder$> metadataDecoder, $Optional$<$MeterRegistry$> registry, $Optional$<$Tracer$> tracer) {\n");
   p->Indent();
   p->Print(
       *vars,
       "this.service = service;\n");
 
   // if metrics present {
-  p->Print(
-      *vars,
-      "if (!registry.isPresent()) {\n"
-  );
-  p->Indent();
-  for (int i = 0; i < service->method_count(); ++i) {
-    const MethodDescriptor* method = service->method(i);
-    (*vars)["lower_method_name"] = LowerMethodName(method);
-
-    p->Print(
-       *vars,
-       "this.$lower_method_name$ = $Function$.identity();\n");
-  }
-
-  // } else metrics not present {
-  p->Outdent();
-  p->Print(
-      *vars,
-      "} else {\n"
-  );
-  p->Indent();
-  for (int i = 0; i < service->method_count(); ++i) {
-    const MethodDescriptor* method = service->method(i);
-    (*vars)["lower_method_name"] = LowerMethodName(method);
-    (*vars)["method_field_name"] = MethodFieldName(method);
-
     p->Print(
         *vars,
-        "this.$lower_method_name$ = $RSocketRpcMetrics$.timed(registry.get(), \"rsocket.server\", \"service\", $service_name$.$service_field_name$, \"method\", $service_name$.$method_field_name$);\n");
-  }
+        "if (!registry.isPresent()) {\n"
+    );
+    p->Indent();
+    for (int i = 0; i < service->method_count(); ++i) {
+      const MethodDescriptor* method = service->method(i);
+      (*vars)["lower_method_name"] = LowerMethodName(method);
 
-  p->Outdent();
-  p->Print("}\n\n");
+      p->Print(
+         *vars,
+         "this.$lower_method_name$ = $Function$.identity();\n");
+    }
+
+  // } else metrics not present {
+    p->Outdent();
+    p->Print(
+        *vars,
+        "} else {\n"
+    );
+    p->Indent();
+    for (int i = 0; i < service->method_count(); ++i) {
+      const MethodDescriptor* method = service->method(i);
+      (*vars)["lower_method_name"] = LowerMethodName(method);
+      (*vars)["method_field_name"] = MethodFieldName(method);
+
+      p->Print(
+          *vars,
+          "this.$lower_method_name$ = $RSocketRpcMetrics$.timed(registry.get(), \"rsocket.server\", \"service\", $service_name$.$service_field_name$, \"method\", $service_name$.$method_field_name$);\n");
+    }
+
+    p->Outdent();
+    p->Print("}\n\n");
   // }
 
   // if tracing present {
@@ -1060,7 +1067,7 @@ static void PrintServer(const ServiceDescriptor* service,
          "this.$lower_method_name$Trace = (ignored) -> $Function$.identity();\n");
     }
 
-    // } else tracing not present {
+  // } else tracing not present {
     p->Outdent();
     p->Print(
         *vars,
@@ -1082,7 +1089,26 @@ static void PrintServer(const ServiceDescriptor* service,
     }
     p->Outdent();
     p->Print("}\n\n");
-    // }
+  // }
+
+  // if metadataDecoder present {
+    p->Print(
+        *vars,
+        "if (metadataDecoder.isPresent()) {\n"
+    );
+    p->Indent();
+    p->Print(
+       *vars,
+       "this.metadataDecoder = metadataDecoder.get();\n");
+    p->Outdent();
+    p->Print("} else {\n");
+    p->Indent();
+    p->Print(
+       *vars,
+       "this.metadataDecoder = new $CompositeMetadataDecoder$(this.tracer);\n");
+    p->Outdent();
+    p->Print("}\n");
+  // }
 
   p->Outdent();
   p->Print("}\n\n");
@@ -1135,67 +1161,115 @@ static void PrintServer(const ServiceDescriptor* service,
 
   // Fire and forget
   p->Print(
-      *vars,
-      "@$Override$\n"
-      "public $Mono$<Void> fireAndForget($Payload$ payload) {\n");
+    *vars,
+    "@$Override$\n"
+    "public $Mono$<$Void$> fireAndForget($Payload$ payload) {\n");
   p->Indent();
   if (fire_and_forget.empty()) {
     p->Print(
         *vars,
-        "return $Mono$.error(new UnsupportedOperationException(\"Fire and forget not implemented.\"));\n");
+        "return $Mono$.error(new UnsupportedOperationException(\"Fire And Forget is not implemented.\"));\n");
   } else {
     p->Print(
+      *vars,
+      "try {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "$Mono$<$Void$> response = metadataDecoder.decode(payload, this::doDecodeAndHandleFireAndForget);\n\n"
+      "payload.release();\n\n"
+      "return response;\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+      "} catch (Throwable t) {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "payload.release();\n"
+      "return $Mono$.error(t);\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+     "}\n");
+  }
+  p->Outdent();
+  p->Print(
+    *vars,
+   "}\n\n");
+
+
+  // Do Decode And Fire and forget delegate
+  p->Print(
+    *vars,
+    "$Mono$<Void> doDecodeAndHandleFireAndForget(\n");
+  p->Indent();
+  p->Print(
+    *vars,
+    "$ByteBuf$ data,\n"
+    "$ByteBuf$ metadata,\n"
+    "$String$ route,\n"
+    "$SpanContext$ spanContext\n");
+  p->Outdent();
+  p->Print(
+      *vars,
+      ") throws $Exception$ {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "switch(route) {\n");
+  p->Indent();
+  for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
         *vars,
-        "try {\n");
+        "case $service_name$.$route_field_name$: {\n");
     p->Indent();
     p->Print(
         *vars,
-        "$ByteBuf$ metadata = payload.sliceMetadata();\n"
-        "$SpanContext$ spanContext = $RSocketRpcTracing$.deserializeTracingMetadata(tracer, metadata);\n"
-        "switch($RSocketRpcMetadata$.getMethod(metadata)) {\n");
-    p->Indent();
-    for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
-      const MethodDescriptor* method = *it;
-      (*vars)["input_type"] = MessageFullJavaName(method->input_type());
-      (*vars)["lower_method_name"] = LowerMethodName(method);
-      (*vars)["method_field_name"] = MethodFieldName(method);
-      p->Print(
-          *vars,
-          "case $service_name$.$method_field_name$: {\n");
-      p->Indent();
-      p->Print(
-          *vars,
-          "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-          "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
-      p->Outdent();
-      p->Print("}\n");
-    }
-    p->Print(
-        *vars,
-        "default: {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Mono$.error(new UnsupportedOperationException());\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("} catch (Throwable t) {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Mono$.error(t);\n");
-    p->Outdent();
-    p->Print("} finally {\n");
-    p->Indent();
-    p->Print("payload.release();\n");
+        "return this.do$method_name$FireAndForget(data, metadata, spanContext);\n");
     p->Outdent();
     p->Print("}\n");
   }
+  p->Print(
+      *vars,
+      "default: {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "return $Mono$.error(new UnsupportedOperationException());\n");
+  p->Outdent();
+  p->Print("}\n");
+  p->Outdent();
+  p->Print("}\n");
   p->Outdent();
   p->Print("}\n\n");
+
+
+  // Do Service Fire-And-Forget
+  for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(method->output_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "private $Mono$<$Void$> do$method_name$FireAndForget($ByteBuf$ data, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+    );
+    p->Indent();
+    p->Print(
+        *vars,
+        "$CodedInputStream$ is = $CodedInputStream$.newInstance(data.nioBuffer());\n"
+        "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
+    p->Outdent();
+    p->Print("}\n");
+    p->Print("\n");
+  }
 
   // Request-Response
   p->Print(
@@ -1206,61 +1280,107 @@ static void PrintServer(const ServiceDescriptor* service,
   if (request_response.empty()) {
     p->Print(
         *vars,
-        "return $Mono$.error(new UnsupportedOperationException(\"Request-Response not implemented.\"));\n");
+        "return $Mono$.error(new UnsupportedOperationException(\"Request Stream is not implemented.\"));\n");
   } else {
     p->Print(
+      *vars,
+      "try {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "$Mono$<$Payload$> response = metadataDecoder.decode(payload, this::doDecodeAndHandleRequestResponse);\n\n"
+      "payload.release();\n\n"
+      "return response;\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+      "} catch (Throwable t) {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "payload.release();\n"
+      "return $Mono$.error(t);\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+     "}\n");
+  }
+  p->Outdent();
+  p->Print(
+    *vars,
+   "}\n\n");
+
+  // Do Decode And Request Response delegate
+  p->Print(
+    *vars,
+    "$Mono$<$Payload$> doDecodeAndHandleRequestResponse(\n");
+  p->Indent();
+  p->Print(
+    *vars,
+    "$ByteBuf$ data,\n"
+    "$ByteBuf$ metadata,\n"
+    "$String$ route,\n"
+    "$SpanContext$ spanContext\n");
+  p->Outdent();
+  p->Print(
+      *vars,
+      ") throws $Exception$ {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "switch(route) {\n");
+  p->Indent();
+  for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
         *vars,
-        "try {\n");
+        "case $service_name$.$route_field_name$: {\n");
     p->Indent();
     p->Print(
         *vars,
-        "$ByteBuf$ metadata = payload.sliceMetadata();\n"
-        "$SpanContext$ spanContext = $RSocketRpcTracing$.deserializeTracingMetadata(tracer, metadata);\n"
-        "switch($RSocketRpcMetadata$.getMethod(metadata)) {\n");
-    p->Indent();
-    for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
-      const MethodDescriptor* method = *it;
-      (*vars)["input_type"] = MessageFullJavaName(method->input_type());
-      (*vars)["output_type"] = MessageFullJavaName(method->output_type());
-      (*vars)["lower_method_name"] = LowerMethodName(method);
-      (*vars)["method_field_name"] = MethodFieldName(method);
-      p->Print(
-          *vars,
-          "case $service_name$.$method_field_name$: {\n");
-      p->Indent();
-      p->Print(
-          *vars,
-          "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-          "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
-      p->Outdent();
-      p->Print("}\n");
-    }
-    p->Print(
-        *vars,
-        "default: {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Mono$.error(new UnsupportedOperationException());\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("} catch (Throwable t) {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Mono$.error(t);\n");
-    p->Outdent();
-    p->Print("} finally {\n");
-    p->Indent();
-    p->Print("payload.release();\n");
+        "return this.do$method_name$RequestResponse(data, metadata, spanContext);\n");
     p->Outdent();
     p->Print("}\n");
   }
+  p->Print(
+      *vars,
+      "default: {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "return $Mono$.error(new UnsupportedOperationException());\n");
+  p->Outdent();
+  p->Print("}\n");
+  p->Outdent();
+  p->Print("}\n");
   p->Outdent();
   p->Print("}\n\n");
+
+  // Do Request-Response
+  for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(method->output_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "private $Mono$<$Payload$> do$method_name$RequestResponse($ByteBuf$ data, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+    );
+    p->Indent();
+    p->Print(
+        *vars,
+        "$CodedInputStream$ is = $CodedInputStream$.newInstance(data.nioBuffer());\n"
+        "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
+    p->Outdent();
+    p->Print("}\n");
+    p->Print("\n");
+  }
+
 
   // Request-Stream
   p->Print(
@@ -1271,111 +1391,143 @@ static void PrintServer(const ServiceDescriptor* service,
   if (request_stream.empty()) {
     p->Print(
         *vars,
-        "return $Flux$.error(new UnsupportedOperationException(\"Request-Stream not implemented.\"));\n");
+        "return $Flux$.error(new UnsupportedOperationException(\"Request Stream is not implemented.\"));\n");
   } else {
     p->Print(
+      *vars,
+      "try {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "$Flux$<$Payload$> response = metadataDecoder.decode(payload, this::doDecodeAndHandleRequestStream);\n\n"
+      "payload.release();\n\n"
+      "return response;\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+      "} catch (Throwable t) {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "payload.release();\n"
+      "return $Flux$.error(t);\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+     "}\n");
+  }
+  p->Outdent();
+  p->Print(
+    *vars,
+   "}\n\n");
+
+  // Do Decode And Request Stream delegate
+  p->Print(
+    *vars,
+    "$Flux$<$Payload$> doDecodeAndHandleRequestStream(\n");
+  p->Indent();
+  p->Print(
+    *vars,
+    "$ByteBuf$ data,\n"
+    "$ByteBuf$ metadata,\n"
+    "$String$ route,\n"
+    "$SpanContext$ spanContext\n");
+  p->Outdent();
+  p->Print(
+      *vars,
+      ") throws $Exception$ {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "switch(route) {\n");
+  p->Indent();
+  for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
         *vars,
-        "try {\n");
+        "case $service_name$.$route_field_name$: {\n");
     p->Indent();
     p->Print(
         *vars,
-        "$ByteBuf$ metadata = payload.sliceMetadata();\n"
-        "$SpanContext$ spanContext = $RSocketRpcTracing$.deserializeTracingMetadata(tracer, metadata);\n"
-        "switch($RSocketRpcMetadata$.getMethod(metadata)) {\n");
-    p->Indent();
-    for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
-      const MethodDescriptor* method = *it;
-      (*vars)["input_type"] = MessageFullJavaName(method->input_type());
-      (*vars)["output_type"] = MessageFullJavaName(method->output_type());
-      (*vars)["lower_method_name"] = LowerMethodName(method);
-      (*vars)["method_field_name"] = MethodFieldName(method);
-      p->Print(
-          *vars,
-          "case $service_name$.$method_field_name$: {\n");
-      p->Indent();
-      p->Print(
-          *vars,
-          "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-          "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
-      p->Outdent();
-      p->Print("}\n");
-    }
-    p->Print(
-        *vars,
-        "default: {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Flux$.error(new UnsupportedOperationException());\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("} catch (Throwable t) {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Flux$.error(t);\n");
-    p->Outdent();
-    p->Print("} finally {\n");
-    p->Indent();
-    p->Print("payload.release();\n");
+        "return this.do$method_name$RequestStream(data, metadata, spanContext);\n");
     p->Outdent();
     p->Print("}\n");
   }
+  p->Print(
+      *vars,
+      "default: {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "return $Flux$.error(new UnsupportedOperationException());\n");
+  p->Outdent();
+  p->Print("}\n");
+  p->Outdent();
+  p->Print("}\n");
   p->Outdent();
   p->Print("}\n\n");
+
+  // Do Service Request-Stream
+  for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(method->output_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "private $Flux$<$Payload$> do$method_name$RequestStream($ByteBuf$ data, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+    );
+    p->Indent();
+    p->Print(
+        *vars,
+        "$CodedInputStream$ is = $CodedInputStream$.newInstance(data.nioBuffer());\n"
+        "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
+    p->Outdent();
+    p->Print("}\n");
+    p->Print("\n");
+  }
 
   // Request-Channel
   p->Print(
       *vars,
       "@$Override$\n"
-      "public $Flux$<$Payload$> requestChannel($Payload$ payload, $Flux$<$Payload$> publisher) {\n");
+      "public $Flux$<$Payload$> requestChannel($Payload$ payload, $Publisher$<$Payload$> payloads) {\n");
   p->Indent();
   if (request_channel.empty()) {
     p->Print(
         *vars,
-        "return $Flux$.error(new UnsupportedOperationException(\"Request-Channel not implemented.\"));\n");
+        "return $Flux$.error(new UnsupportedOperationException(\"Request Channel is not implemented.\"));\n");
   } else {
     p->Print(
-        *vars,
-        "try {\n");
+      *vars,
+      "try {\n");
     p->Indent();
     p->Print(
+      *vars,
+      "$Flux$<$Payload$> response = metadataDecoder.decode(payload, ($ByteBuf$ data, $ByteBuf$ metadata, $String$ route, $SpanContext$ spanContext) -> {\n");
+    p->Indent();
+
+    p->Print(
         *vars,
-        "$ByteBuf$ metadata = payload.sliceMetadata();\n"
-        "$SpanContext$ spanContext = $RSocketRpcTracing$.deserializeTracingMetadata(tracer, metadata);\n"
-        "switch($RSocketRpcMetadata$.getMethod(metadata)) {\n");
+        "switch(route) {\n");
     p->Indent();
     for (vector<const MethodDescriptor*>::iterator it = request_channel.begin(); it != request_channel.end(); ++it) {
       const MethodDescriptor* method = *it;
       (*vars)["input_type"] = MessageFullJavaName(method->input_type());
-      (*vars)["output_type"] = MessageFullJavaName(method->output_type());
-      (*vars)["lower_method_name"] = LowerMethodName(method);
-      (*vars)["method_field_name"] = MethodFieldName(method);
+      (*vars)["method_name"] = method->name();
+      (*vars)["route_field_name"] = RouteFieldName(method);
       p->Print(
           *vars,
-          "case $service_name$.$method_field_name$: {\n");
+          "case $service_name$.$route_field_name$: {\n");
       p->Indent();
       p->Print(
           *vars,
-          "$Flux$<$input_type$> messages =\n");
-      p->Indent();
-      p->Print(
-          *vars,
-          "publisher.map(deserializer($input_type$.parser()));\n");
-      p->Outdent();
-      if (method->server_streaming()) {
-        p->Print(
-            *vars,
-            "return service.$lower_method_name$(messages, metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
-      } else {
-        p->Print(
-            *vars,
-            "return service.$lower_method_name$(messages, metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext)).$flux$();\n");
-      }
-
+          "return this.do$method_name$RequestChannel($Flux$.from(payloads), data, metadata, spanContext);\n");
       p->Outdent();
       p->Print("}\n");
     }
@@ -1385,22 +1537,33 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
         *vars,
+        "payload.release();\n"
         "return $Flux$.error(new UnsupportedOperationException());\n");
     p->Outdent();
     p->Print("}\n");
     p->Outdent();
     p->Print("}\n");
     p->Outdent();
-    p->Print("} catch (Throwable t) {\n");
+    p->Print("});\n\n");
+    p->Print("return response;\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+      "} catch (Throwable t) {\n");
     p->Indent();
     p->Print(
-        *vars,
-        "return $Flux$.error(t);\n");
+      *vars,
+      "payload.release();\n"
+      "return $Flux$.error(t);\n");
     p->Outdent();
-    p->Print("}\n");
+    p->Print(
+      *vars,
+     "}\n");
   }
   p->Outdent();
-  p->Print("}\n\n");
+  p->Print(
+    *vars,
+   "}\n\n");
 
   p->Print(
       *vars,
@@ -1414,16 +1577,28 @@ static void PrintServer(const ServiceDescriptor* service,
   } else {
     p->Print(
         *vars,
-        "return new $SwitchTransformFlux$<$Payload$, $Payload$>(payloads, new $BiFunction$<$Payload$, $Flux$<$Payload$>, $Publisher$<? extends $Payload$>>() {\n");
+        "return $Flux$.from(payloads).switchOnFirst(new $BiFunction$<$Signal$<? extends $Payload$>, $Flux$<$Payload$>, $Publisher$<? extends $Payload$>>() {\n");
     p->Indent();
     p->Print(
         *vars,
         "@$Override$\n"
-        "public $Publisher$<$Payload$> apply($Payload$ payload, $Flux$<$Payload$> publisher) {\n");
+        "public $Publisher$<$Payload$> apply($Signal$<? extends $Payload$> payloadSignal, $Flux$<$Payload$> publisher) {\n");
     p->Indent();
     p->Print(
         *vars,
-        "return requestChannel(payload, publisher);\n");
+        "if (payloadSignal.hasValue()) {\n");
+    p->Indent();
+    p->Print(
+            *vars,
+            "return requestChannel(payloadSignal.get(), publisher);\n");
+    p->Outdent();
+    p->Print(
+            *vars,
+            "} else {\n");
+    p->Indent();
+    p->Print("return publisher;\n");
+    p->Outdent();
+    p->Print("}\n");
     p->Outdent();
     p->Print("}\n");
     p->Outdent();
@@ -1432,6 +1607,83 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Outdent();
   p->Print("}\n\n");
 
+  // Do Request-Channel
+  for (vector<const MethodDescriptor*>::iterator it = request_channel.begin(); it != request_channel.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(method->output_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "private $Flux$<$Payload$> do$method_name$RequestChannel($Flux$<$Payload$> publisher, $ByteBuf$ data, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+    );
+    p->Indent();
+    p->Print(
+        *vars,
+        "$Flux$<$input_type$> messages =\n");
+    p->Indent();
+    p->Print(
+        *vars,
+        "publisher.map(deserializer($input_type$.parser()));\n");
+    p->Outdent();
+    if (method->server_streaming()) {
+      p->Print(
+          *vars,
+          "return service.$lower_method_name$(messages, metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
+    } else {
+      p->Print(
+          *vars,
+          "return service.$lower_method_name$(messages, metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext)).$flux$();\n");
+    }
+    p->Outdent();
+    p->Print("}\n");
+    p->Print("\n");
+  }
+
+  // Self Registration
+
+  p->Print(
+    *vars,
+    "@$Override$\n"
+    "public void selfRegister($Map$<$String$, $IPCFunction$<$Mono$<$Void$>>> fireAndForgetRegistry, $Map$<$String$, $IPCFunction$<$Mono$<$Payload$>>> requestResponseRegistry, $Map$<$String$, $IPCFunction$<$Flux$<$Payload$>>> requestStreamRegistry, $Map$<$String$, $IPCChannelFunction$> requestChannelRegistry) {\n");
+  p->Indent();
+  for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
+        *vars,
+        "fireAndForgetRegistry.put($service_name$.$route_field_name$, this::do$method_name$FireAndForget);\n");
+  }
+  for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
+        *vars,
+        "requestResponseRegistry.put($service_name$.$route_field_name$, this::do$method_name$RequestResponse);\n");
+  }
+  for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
+        *vars,
+        "requestStreamRegistry.put($service_name$.$route_field_name$, this::do$method_name$RequestStream);\n");
+  }
+  for (vector<const MethodDescriptor*>::iterator it = request_channel.begin(); it != request_channel.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
+        *vars,
+        "requestChannelRegistry.put($service_name$.$route_field_name$, this::do$method_name$RequestChannel);\n");
+  }
+  p->Outdent();
+  p->Print("}\n");
+  p->Print("\n");
   // Serializer
   p->Print(
       *vars,
@@ -1623,7 +1875,6 @@ void GenerateServer(const ServiceDescriptor* service,
   vars["RSocket"] = "io.rsocket.RSocket";
   vars["Payload"] = "io.rsocket.Payload";
   vars["ByteBufPayload"] = "io.rsocket.util.ByteBufPayload";
-  vars["SwitchTransformFlux"] = "io.rsocket.internal.SwitchTransformFlux";
   vars["AbstractRSocketService"] = "io.rsocket.rpc.AbstractRSocketService";
   vars["RSocketRpcMetadata"] = "io.rsocket.rpc.frames.Metadata";
   vars["RSocketRpcMetrics"] = "io.rsocket.rpc.metrics.Metrics";
@@ -1643,6 +1894,15 @@ void GenerateServer(const ServiceDescriptor* service,
   vars["Tag"] = "io.rsocket.rpc.tracing.Tag";
   vars["SpanContext"] = "io.opentracing.SpanContext";
   vars["Tracer"] = "io.opentracing.Tracer";
+  vars["Map"] = "java.util.Map";
+  vars["IPCFunction"] = "io.rsocket.ipc.util.IPCFunction";
+  vars["IPCChannelFunction"] = "io.rsocket.ipc.util.IPCChannelFunction";
+  vars["String"] = "java.lang.String";
+  vars["Void"] = "java.lang.Void";
+  vars["Signal"] = "reactor.core.publisher.Signal";
+  vars["Exception"] = "java.lang.Exception";
+  vars["MetadataDecoder"] = "io.rsocket.ipc.MetadataDecoder";
+  vars["CompositeMetadataDecoder"] = "io.rsocket.ipc.decoders.CompositeMetadataDecoder";
 
   Printer printer(out, '$');
   string package_name = ServiceJavaPackage(service->file());
