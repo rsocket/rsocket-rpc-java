@@ -676,7 +676,24 @@ static void PrintClient(const ServiceDescriptor* service,
       p->Indent();
       p->Print(
           *vars,
-          "return rSocket.requestChannel($Flux$.$from$(messages).map(\n");
+          "return rSocket.requestChannel(\n");
+      p->Indent();
+      p->Print(
+          *vars,
+          "$Flux$.defer(new $Supplier$<$Publisher$<$Payload$>>() {\n\n");
+      p->Indent();
+
+      p->Print(
+          *vars,
+          "@$Override$\n"
+          "public $Publisher$<$Payload$> get() {\n");
+      p->Print(
+          *vars,
+          "final $AtomicBoolean$ once = new $AtomicBoolean$(false);\n\n");
+      p->Indent();
+            p->Print(
+                *vars,
+                "return $Flux$.$from$(messages).map(\n");
       p->Indent();
       p->Print(
           *vars,
@@ -684,7 +701,6 @@ static void PrintClient(const ServiceDescriptor* service,
       p->Indent();
       p->Print(
           *vars,
-          "private final $AtomicBoolean$ once = new $AtomicBoolean$(false);\n\n"
           "@$Override$\n"
           "public $Payload$ apply($MessageLite$ message) {\n");
       p->Indent();
@@ -708,6 +724,10 @@ static void PrintClient(const ServiceDescriptor* service,
       p->Outdent();
       p->Print("}\n");
       p->Outdent();
+      p->Print(" });\n");
+      p->Outdent();
+      p->Print(" }\n");
+
       if (server_streaming) {
         p->Print(
             *vars,
