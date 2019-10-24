@@ -22,8 +22,8 @@ jobs:
     before_install:
     - rm -r "/c/Program Files (x86)/Microsoft Visual Studio 14.0"
     - export PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Tools/MSVC/14.16.27023/bin/HostX86/x64"
-    - choco install -y adoptopenjdk8
-    - export PATH=$PATH:"/c/Program Files/AdoptOpenJDK/jdk-8.0.222.10-hotspot/bin"
+    - choco install -y adoptopenjdk8 --version 8.232.9
+    - export PATH=$PATH:"/c/Program Files/AdoptOpenJDK/jdk-8.0.232.09-hotspot/bin"
     - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
     - tar -xzf protobuf-cpp-3.6.1.tar.gz
     - pushd protobuf-3.6.1/cmake
