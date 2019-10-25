@@ -9,16 +9,16 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
 
 elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bintrayUser" != "" ] ; then
 
-    echo -e "Building Snapshot $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH"
+    echo -e "Building Snapshot $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH, build number: $TRAVIS_BUILD_NUMBER"
     ./gradlew \
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
-        -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
+        -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
         build artifactoryPublish --stacktrace
 
 elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" != "" ] && [ "$bintrayUser" != "" ] ; then
 
-    echo -e "Building Tag $TRAVIS_REPO_SLUG/$TRAVIS_TAG"
+    echo -e "Building Tag $TRAVIS_REPO_SLUG/$TRAVIS_TAG, build number: $TRAVIS_BUILD_NUMBER"
     ./gradlew \
         -Pversion="$TRAVIS_TAG" -Pstage="$TRAVIS_BUILD_STAGE_NAME" -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
