@@ -33,6 +33,7 @@ if (project.hasProperty('bintrayUser') && project.hasProperty('bintrayKey')) {
                     defaults {
                         publications('maven')
                     }
+                    clientConfig.info.setBuildNumber('' + project.property('buildNumber'))
                 }
             }
         }
