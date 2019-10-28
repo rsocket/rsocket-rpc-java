@@ -898,6 +898,7 @@ static void PrintClient(const ServiceDescriptor* service,
           *vars,
           "first = false;\n"
           "final $ByteBuf$ metadataBuf = metadataEncoder.encode(metadata, new $SimpleSpanContext$(map), $service_name$.$service_field_name$, $service_name$.$method_field_name$);\n"
+          "metadata.release();\n"
           "return $ByteBufPayload$.create(data, metadataBuf);\n");
       p->Outdent();
       p->Print("} else {\n");

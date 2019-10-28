@@ -15,9 +15,11 @@
  */
 package io.rsocket.ipc;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
 import io.rsocket.ipc.decoders.CompositeMetadataDecoder;
+import io.rsocket.ipc.encoders.BackwardCompatibleMetadataEncoder;
 import io.rsocket.ipc.marshallers.Primitives;
 import io.rsocket.ipc.marshallers.Strings;
 import io.rsocket.transport.local.LocalClientTransport;
@@ -86,6 +88,7 @@ public class IntegrationTest {
     Client<CharSequence, String> helloService =
         Client.service("HelloService")
             .rsocket(rsocket)
+            .customMetadataEncoder(new BackwardCompatibleMetadataEncoder(ByteBufAllocator.DEFAULT))
             .noMeterRegistry()
             .noTracer()
             .marshall(Strings.marshaller())

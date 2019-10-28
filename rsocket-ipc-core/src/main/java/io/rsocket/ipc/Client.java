@@ -17,7 +17,6 @@ package io.rsocket.ipc;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
@@ -312,16 +311,23 @@ public final class Client<I, O> {
       Function<? super Publisher<Void>, ? extends Publisher<Void>> metrics,
       Function<Map<String, String>, Function<? super Publisher<Void>, ? extends Publisher<Void>>>
           tracing) {
-    try {
-      HashMap<String, String> map = new HashMap<>();
-      ByteBuf d = marshaller.apply(o);
-      ByteBuf m = metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
-
-      Payload payload = ByteBufPayload.create(d, m);
-      return r.fireAndForget(payload).transform(metrics).transform(tracing.apply(map));
-    } catch (Throwable t) {
-      return Mono.error(t);
-    }
+    final HashMap<String, String> map = new HashMap<>();
+    return Mono.defer(
+            () -> {
+              try {
+                ByteBuf d = marshaller.apply(o);
+                ByteBuf m =
+                    metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
+                metadata.release();
+                Payload payload = ByteBufPayload.create(d, m);
+                return r.fireAndForget(payload);
+              } catch (Throwable t) {
+                metadata.release();
+                return Mono.error(t);
+              }
+            })
+        .transform(metrics)
+        .transform(tracing.apply(map));
   }
 
   private <X, Y> Mono<Y> doRequestResponse(
@@ -335,26 +341,31 @@ public final class Client<I, O> {
       Function<? super Publisher<Y>, ? extends Publisher<Y>> metrics,
       Function<Map<String, String>, Function<? super Publisher<Y>, ? extends Publisher<Y>>>
           tracing) {
-    try {
-      HashMap<String, String> map = new HashMap<>();
-      ByteBuf d = marshaller.apply(o);
-      ByteBuf m = metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
-
-      Payload payload = ByteBufPayload.create(d, m);
-      return r.requestResponse(payload)
-          .map(
-              p -> {
-                try {
-                  return unmarshaller.apply(p.sliceData());
-                } finally {
-                  p.release();
-                }
-              })
-          .transform(metrics)
-          .transform(tracing.apply(map));
-    } catch (Throwable t) {
-      return Mono.error(t);
-    }
+    final HashMap<String, String> map = new HashMap<>();
+    return Mono.defer(
+            () -> {
+              try {
+                ByteBuf d = marshaller.apply(o);
+                ByteBuf m =
+                    metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
+                metadata.release();
+                Payload payload = ByteBufPayload.create(d, m);
+                return r.requestResponse(payload);
+              } catch (Throwable t) {
+                metadata.release();
+                return Mono.error(t);
+              }
+            })
+        .map(
+            p -> {
+              try {
+                return unmarshaller.apply(p.sliceData());
+              } finally {
+                p.release();
+              }
+            })
+        .transform(metrics)
+        .transform(tracing.apply(map));
   }
 
   private <X, Y> Flux<Y> doRequestStream(
@@ -368,26 +379,31 @@ public final class Client<I, O> {
       Function<? super Publisher<Y>, ? extends Publisher<Y>> metrics,
       Function<Map<String, String>, Function<? super Publisher<Y>, ? extends Publisher<Y>>>
           tracing) {
-    try {
-      HashMap<String, String> map = new HashMap<>();
-      ByteBuf d = marshaller.apply(o);
-      ByteBuf m = metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
-
-      Payload payload = ByteBufPayload.create(d, m);
-      return r.requestStream(payload)
-          .map(
-              p -> {
-                try {
-                  return unmarshaller.apply(p.sliceData());
-                } finally {
-                  p.release();
-                }
-              })
-          .transform(metrics)
-          .transform(tracing.apply(map));
-    } catch (Throwable t) {
-      return Flux.error(t);
-    }
+    final HashMap<String, String> map = new HashMap<>();
+    return Flux.defer(
+            () -> {
+              try {
+                ByteBuf d = marshaller.apply(o);
+                ByteBuf m =
+                    metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
+                metadata.release();
+                Payload payload = ByteBufPayload.create(d, m);
+                return r.requestStream(payload);
+              } catch (Throwable t) {
+                metadata.release();
+                return Flux.error(t);
+              }
+            })
+        .map(
+            p -> {
+              try {
+                return unmarshaller.apply(p.sliceData());
+              } finally {
+                p.release();
+              }
+            })
+        .transform(metrics)
+        .transform(tracing.apply(map));
   }
 
   private <X, Y> Flux<Y> doRequestChannel(
@@ -403,19 +419,28 @@ public final class Client<I, O> {
           tracing) {
     try {
 
-      HashMap<String, String> map = new HashMap<>();
+      final HashMap<String, String> map = new HashMap<>();
 
       Flux<Payload> input =
           Flux.from(pub)
               .map(
-                  o -> {
-                    ByteBuf d = marshaller.apply(o);
-                    ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
-                    ByteBuf m =
-                        metadataEncoder.encode(
-                            metadata, new SimpleSpanContext(map), service, route);
+                  new Function<X, Payload>() {
+                    boolean first = true;
 
-                    return ByteBufPayload.create(d, m);
+                    @Override
+                    public Payload apply(X o) {
+                      ByteBuf d = marshaller.apply(o);
+                      if (first) {
+                        first = false;
+                        ByteBuf m =
+                            metadataEncoder.encode(
+                                metadata, new SimpleSpanContext(map), service, route);
+                        metadata.release();
+                        return ByteBufPayload.create(d, m);
+                      }
+
+                      return ByteBufPayload.create(d);
+                    }
                   });
 
       return r.requestChannel(input)

@@ -9,12 +9,14 @@ import graphql.schema.idl.RuntimeWiring;
 import graphql.schema.idl.SchemaGenerator;
 import graphql.schema.idl.SchemaParser;
 import graphql.schema.idl.TypeDefinitionRegistry;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
 import io.rsocket.ipc.IPCRSocket;
 import io.rsocket.ipc.RequestHandlingRSocket;
 import io.rsocket.ipc.Unmarshaller;
+import io.rsocket.ipc.encoders.BackwardCompatibleMetadataEncoder;
 import io.rsocket.ipc.marshallers.Json;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
@@ -78,6 +80,7 @@ public class GraphQLIntegrationTest {
     GraphQLClient.Query bookQuery =
         GraphQLClient.service("books")
             .rsocket(rsocket)
+            .customMetadataEncoder(new BackwardCompatibleMetadataEncoder(ByteBufAllocator.DEFAULT))
             .noMeterRegistry()
             .noTracer()
             .marshall(Json.marshaller(GraphQLRequest.class))
