@@ -21,11 +21,14 @@ import io.netty.buffer.ByteBufAllocator;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
-import io.rsocket.ipc.frames.Metadata;
+import io.rsocket.ipc.encoders.CompositeMetadataEncoder;
+import io.rsocket.ipc.encoders.PlainMetadataEncoder;
 import io.rsocket.ipc.metrics.Metrics;
+import io.rsocket.ipc.tracing.SimpleSpanContext;
 import io.rsocket.ipc.tracing.Tag;
 import io.rsocket.ipc.tracing.Tracing;
 import io.rsocket.util.ByteBufPayload;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -38,6 +41,7 @@ import reactor.core.publisher.Mono;
 public final class Client<I, O> {
 
   private final String service;
+  private final MetadataEncoder metadataEncoder;
   private final Marshaller<I> marshaller;
   private final Unmarshaller<O> unmarshaller;
   private final RSocket rSocket;
@@ -46,12 +50,14 @@ public final class Client<I, O> {
 
   private Client(
       final String service,
+      final MetadataEncoder metadataEncoder,
       final Marshaller marshaller,
       final Unmarshaller unmarshaller,
       final RSocket rSocket,
       final MeterRegistry meterRegistry,
       final Tracer tracer) {
     this.service = service;
+    this.metadataEncoder = metadataEncoder;
     this.marshaller = marshaller;
     this.unmarshaller = unmarshaller;
     this.rSocket = rSocket;
@@ -60,7 +66,15 @@ public final class Client<I, O> {
   }
 
   public interface R {
-    M rsocket(RSocket rSocket);
+    E rsocket(RSocket rSocket);
+  }
+
+  public interface E {
+    M compositeMetadataEncoder();
+
+    M plainMetadataEncoder();
+
+    M customMetadataEncoder(MetadataEncoder encoder);
   }
 
   public interface M {
@@ -217,15 +231,34 @@ public final class Client<I, O> {
         doFireAndForget(service, route, rSocket, marshaller, o, byteBuf, metrics, tracing);
   }
 
-  private static class Builder implements P, U, R, M, T {
+  private static class Builder implements P, U, E, R, M, T {
     private final String service;
     private Marshaller marshaller;
+    private MetadataEncoder encoder;
     private MeterRegistry meterRegistry;
     private Tracer tracer;
     private RSocket rSocket;
 
     private Builder(String service) {
       this.service = service;
+    }
+
+    @Override
+    public M compositeMetadataEncoder() {
+      this.encoder = new CompositeMetadataEncoder();
+      return this;
+    }
+
+    @Override
+    public M plainMetadataEncoder() {
+      this.encoder = new PlainMetadataEncoder(".", Charset.defaultCharset());
+      return this;
+    }
+
+    @Override
+    public M customMetadataEncoder(MetadataEncoder encoder) {
+      this.encoder = encoder;
+      return this;
     }
 
     @Override
@@ -237,11 +270,11 @@ public final class Client<I, O> {
     @Override
     public Client unmarshall(Unmarshaller unmarshaller) {
       Objects.requireNonNull(unmarshaller);
-      return new Client(service, marshaller, unmarshaller, rSocket, meterRegistry, tracer);
+      return new Client(service, encoder, marshaller, unmarshaller, rSocket, meterRegistry, tracer);
     }
 
     @Override
-    public M rsocket(RSocket rSocket) {
+    public E rsocket(RSocket rSocket) {
       this.rSocket = Objects.requireNonNull(rSocket);
       return this;
     }
@@ -282,8 +315,7 @@ public final class Client<I, O> {
     try {
       HashMap<String, String> map = new HashMap<>();
       ByteBuf d = marshaller.apply(o);
-      ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
-      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, t, metadata);
+      ByteBuf m = metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
 
       Payload payload = ByteBufPayload.create(d, m);
       return r.fireAndForget(payload).transform(metrics).transform(tracing.apply(map));
@@ -306,8 +338,7 @@ public final class Client<I, O> {
     try {
       HashMap<String, String> map = new HashMap<>();
       ByteBuf d = marshaller.apply(o);
-      ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
-      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, t, metadata);
+      ByteBuf m = metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
 
       Payload payload = ByteBufPayload.create(d, m);
       return r.requestResponse(payload)
@@ -340,8 +371,7 @@ public final class Client<I, O> {
     try {
       HashMap<String, String> map = new HashMap<>();
       ByteBuf d = marshaller.apply(o);
-      ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
-      ByteBuf m = Metadata.encode(ByteBufAllocator.DEFAULT, service, route, t, metadata);
+      ByteBuf m = metadataEncoder.encode(metadata, new SimpleSpanContext(map), service, route);
 
       Payload payload = ByteBufPayload.create(d, m);
       return r.requestStream(payload)
@@ -382,7 +412,8 @@ public final class Client<I, O> {
                     ByteBuf d = marshaller.apply(o);
                     ByteBuf t = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, map);
                     ByteBuf m =
-                        Metadata.encode(ByteBufAllocator.DEFAULT, service, route, t, metadata);
+                        metadataEncoder.encode(
+                            metadata, new SimpleSpanContext(map), service, route);
 
                     return ByteBufPayload.create(d, m);
                   });

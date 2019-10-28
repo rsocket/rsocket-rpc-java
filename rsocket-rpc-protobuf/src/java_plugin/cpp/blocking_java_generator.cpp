@@ -1458,7 +1458,7 @@ void GenerateClient(const ServiceDescriptor* service,
   vars["Supplier"] = "java.util.function.Supplier";
   vars["MetadataEncoder"] = "io.rsocket.ipc.MetadataEncoder";
   vars["BackwardCompatibleMetadataEncoder"] = "io.rsocket.ipc.encoders.BackwardCompatibleMetadataEncoder";
-  vars["SimpleSpanContext"] = "io.rsocket.rpc.tracing.SimpleSpanContext";
+  vars["SimpleSpanContext"] = "io.rsocket.ipc.tracing.SimpleSpanContext";
 
   Printer printer(out, '$');
     string package_name = ServiceJavaPackage(service->file());

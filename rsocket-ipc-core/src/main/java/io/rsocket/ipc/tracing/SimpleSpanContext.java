@@ -1,4 +1,4 @@
-package io.rsocket.rpc.tracing;
+package io.rsocket.ipc.tracing;
 
 import io.opentracing.SpanContext;
 import java.util.Map;
