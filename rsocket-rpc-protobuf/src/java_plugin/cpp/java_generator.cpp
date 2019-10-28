@@ -382,7 +382,8 @@ static void PrintClient(const ServiceDescriptor* service,
 
   p->Print(
       *vars,
-      "private final $RSocket$ rSocket;\n");
+      "private final $RSocket$ rSocket;\n"
+      "private final $MetadataEncoder$ metadataEncoder;\n");
 
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
@@ -455,6 +456,49 @@ static void PrintClient(const ServiceDescriptor* service,
       *vars,
       "this.rSocket = rSocket;\n");
 
+  // Default Encoder
+  p->Print(
+      *vars,
+      "this.metadataEncoder = new $BackwardCompatibleMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
+
+  // RPC metrics
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "this.$lower_method_name$ = $Function$.identity();\n");
+  }
+
+  // Tracing metrics
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "this.$lower_method_name$Trace = $RSocketRpcTracing$.trace();\n");
+  }
+
+  p->Outdent();
+  p->Print("}\n\n");
+
+  // RSocket And Encoder
+  p->Print(
+      *vars,
+      "\n"
+      "public $client_class_name$($RSocket$ rSocket, $MetadataEncoder$ metadataEncoder) {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "this.rSocket = rSocket;\n");
+
+  // Given Encoder
+  p->Print(
+      *vars,
+      "this.metadataEncoder = metadataEncoder;\n");
+
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
     const MethodDescriptor* method = service->method(i);
@@ -486,6 +530,50 @@ static void PrintClient(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "this.rSocket = rSocket;\n");
+
+  // Default Encoder
+  p->Print(
+      *vars,
+      "this.metadataEncoder = new $BackwardCompatibleMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
+
+  // RPC metrics
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+    (*vars)["method_field_name"] = MethodFieldName(method);
+
+    p->Print(
+        *vars,
+        "this.$lower_method_name$ = $RSocketRpcMetrics$.timed(registry, \"rsocket.client\", \"service\", $service_name$.$service_field_name$, \"method\", $service_name$.$method_field_name$);\n");
+  }
+
+  // Tracing metrics
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+    (*vars)["method_field_name"] = MethodFieldName(method);
+
+    p->Print(
+        *vars,
+        "this.$lower_method_name$Trace = $RSocketRpcTracing$.trace();\n");
+  }
+
+  p->Outdent();
+  p->Print("}\n\n");
+
+  // RSocket and Encoder and Metrics
+  p->Print(
+      *vars,
+      "public $client_class_name$($RSocket$ rSocket, $MetadataEncoder$ metadataEncoder, $MeterRegistry$ registry) {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "this.rSocket = rSocket;\n");
+
+  // Given Encoder
+  p->Print(
+      *vars,
+      "this.metadataEncoder = metadataEncoder;\n");
 
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
@@ -522,6 +610,51 @@ static void PrintClient(const ServiceDescriptor* service,
       *vars,
       "this.rSocket = rSocket;\n");
 
+  // Default Encoder
+  p->Print(
+      *vars,
+      "this.metadataEncoder = new $BackwardCompatibleMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
+
+  // RPC metrics
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+    (*vars)["method_field_name"] = MethodFieldName(method);
+
+    p->Print(
+        *vars,
+        "this.$lower_method_name$ = $Function$.identity();\n");
+  }
+
+  // Tracing metrics
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+    (*vars)["method_field_name"] = MethodFieldName(method);
+
+    p->Print(
+        *vars,
+        "this.$lower_method_name$Trace = $RSocketRpcTracing$.trace(tracer, $service_name$.$method_field_name$, $Tag$.of(\"rsocket.service\", $service_name$.$service_field_name$), $Tag$.of(\"rsocket.rpc.role\", \"client\"), $Tag$.of(\"rsocket.rpc.version\", \"$version$\"));\n");
+  }
+
+  p->Outdent();
+  p->Print("}\n\n");
+
+  // RSocket and Tracing
+  p->Print(
+      *vars,
+      "\n"
+      "public $client_class_name$($RSocket$ rSocket, $MetadataEncoder$ metadataEncoder, $Tracer$ tracer) {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "this.rSocket = rSocket;\n");
+
+  // Given Encoder
+  p->Print(
+      *vars,
+      "this.metadataEncoder = metadataEncoder;\n");
+
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
     const MethodDescriptor* method = service->method(i);
@@ -557,6 +690,51 @@ static void PrintClient(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "this.rSocket = rSocket;\n");
+
+  // Default Encoder
+  p->Print(
+      *vars,
+      "this.metadataEncoder = new $BackwardCompatibleMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
+
+  // RPC metrics
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+    (*vars)["method_field_name"] = MethodFieldName(method);
+
+    p->Print(
+        *vars,
+        "this.$lower_method_name$ = $RSocketRpcMetrics$.timed(registry, \"rsocket.client\", \"service\", $service_name$.$service_field_name$, \"method\", $service_name$.$method_field_name$);\n");
+  }
+
+  // Tracing metrics
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+    (*vars)["method_field_name"] = MethodFieldName(method);
+
+    p->Print(
+        *vars,
+        "this.$lower_method_name$Trace = $RSocketRpcTracing$.trace(tracer, $service_name$.$method_field_name$, $Tag$.of(\"rsocket.service\", $service_name$.$service_field_name$), $Tag$.of(\"rsocket.rpc.role\", \"client\"), $Tag$.of(\"rsocket.rpc.version\", \"$version$\"));\n");
+  }
+
+  p->Outdent();
+  p->Print("}\n\n");
+
+  // RSocket, Encoder, Metrics, and Tracing
+  p->Print(
+      *vars,
+      "\n"
+      "public $client_class_name$($RSocket$ rSocket, $MetadataEncoder$ metadataEncoder, $MeterRegistry$ registry, $Tracer$ tracer) {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "this.rSocket = rSocket;\n");
+
+  // Default Encoder
+  p->Print(
+      *vars,
+      "this.metadataEncoder = metadataEncoder;\n");
 
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
@@ -681,43 +859,45 @@ static void PrintClient(const ServiceDescriptor* service,
           );
       p->Indent();
       p->Print(
-          *vars,
-          "return rSocket.requestChannel(\n");
+        *vars,
+        "return rSocket.requestChannel(\n");
       p->Indent();
       p->Print(
-          *vars,
-          "$Flux$.defer(new $Supplier$<$Publisher$<$Payload$>>() {\n\n");
+        *vars,
+        "$Flux$.defer(new $Supplier$<$Publisher$<$Payload$>>() {\n\n");
       p->Indent();
 
       p->Print(
-          *vars,
-          "@$Override$\n"
-          "public $Publisher$<$Payload$> get() {\n");
+        *vars,
+        "@$Override$\n"
+        "public $Publisher$<$Payload$> get() {\n");
       p->Print(
-          *vars,
-          "final $AtomicBoolean$ once = new $AtomicBoolean$(false);\n\n");
-      p->Indent();
-            p->Print(
-                *vars,
-                "return $Flux$.$from$(messages).map(\n");
+        *vars,
+        "private boolean first = true;\n\n");
       p->Indent();
       p->Print(
-          *vars,
-          "new $Function$<$MessageLite$, $Payload$>() {\n");
+        *vars,
+        "return $Flux$.$from$(messages).map(\n");
+      p->Indent();
+      p->Print(
+        *vars,
+        "new $Function$<$MessageLite$, $Payload$>() {\n");
       p->Indent();
       p->Print(
           *vars,
+          "private boolean first = true;\n\n"
           "@$Override$\n"
           "public $Payload$ apply($MessageLite$ message) {\n");
       p->Indent();
       p->Print(
           *vars,
           "$ByteBuf$ data = serialize(message);\n"
-          "if (once.compareAndSet(false, true)) {\n");
+          "if (first) {\n");
       p->Indent();
       p->Print(
           *vars,
-          "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, metadata);\n"
+          "first = false;\n"
+          "final $ByteBuf$ metadataBuf = metadataEncoder.encode(metadata, new $SimpleSpanContext$(map), $service_name$.$service_field_name$, $service_name$.$method_field_name$);\n"
           "return $ByteBufPayload$.create(data, metadataBuf);\n");
       p->Outdent();
       p->Print("} else {\n");
@@ -730,10 +910,6 @@ static void PrintClient(const ServiceDescriptor* service,
       p->Outdent();
       p->Print("}\n");
       p->Outdent();
-      p->Print(" });\n");
-      p->Outdent();
-      p->Print(" }\n");
-
       if (server_streaming) {
         p->Print(
             *vars,
@@ -768,9 +944,7 @@ static void PrintClient(const ServiceDescriptor* service,
         p->Print(
             *vars,
             "final $ByteBuf$ data = serialize(message);\n"
-            "final $ByteBuf$ tracing = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
-            "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracing, metadata);\n"
-            "tracing.release();\n"
+            "final $ByteBuf$ metadataBuf = metadataEncoder.encode(metadata, new $SimpleSpanContext$(map), $service_name$.$service_field_name$, $service_name$.$method_field_name$);\n"
             "metadata.release();\n"
             "return rSocket.requestStream($ByteBufPayload$.create(data, metadataBuf));\n");
         p->Outdent();
@@ -793,9 +967,7 @@ static void PrintClient(const ServiceDescriptor* service,
           p->Print(
               *vars,
               "final $ByteBuf$ data = serialize(message);\n"
-              "final $ByteBuf$ tracing = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
-              "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracing, metadata);\n"
-              "tracing.release();\n"
+              "final $ByteBuf$ metadataBuf = metadataEncoder.encode(metadata, new $SimpleSpanContext$(map), $service_name$.$service_field_name$, $service_name$.$method_field_name$);\n"
               "metadata.release();\n"
               "return rSocket.fireAndForget($ByteBufPayload$.create(data, metadataBuf));\n");
           p->Outdent();
@@ -817,9 +989,7 @@ static void PrintClient(const ServiceDescriptor* service,
           p->Print(
               *vars,
               "final $ByteBuf$ data = serialize(message);\n"
-              "final $ByteBuf$ tracing = $RSocketRpcTracing$.mapToByteBuf($ByteBufAllocator$.DEFAULT, map);\n"
-              "final $ByteBuf$ metadataBuf = $RSocketRpcMetadata$.encode($ByteBufAllocator$.DEFAULT, $service_name$.$service_field_name$, $service_name$.$method_field_name$, tracing, metadata);\n"
-              "tracing.release();\n"
+              "final $ByteBuf$ metadataBuf = metadataEncoder.encode(metadata, new $SimpleSpanContext$(map), $service_name$.$service_field_name$, $service_name$.$method_field_name$);\n"
               "metadata.release();\n"
               "return rSocket.requestResponse($ByteBufPayload$.create(data, metadataBuf));\n");
           p->Outdent();
@@ -1280,7 +1450,7 @@ static void PrintServer(const ServiceDescriptor* service,
   if (request_response.empty()) {
     p->Print(
         *vars,
-        "return $Mono$.error(new UnsupportedOperationException(\"Request Stream is not implemented.\"));\n");
+        "return $Mono$.error(new UnsupportedOperationException(\"Request Response is not implemented.\"));\n");
   } else {
     p->Print(
       *vars,
@@ -1684,6 +1854,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Outdent();
   p->Print("}\n");
   p->Print("\n");
+
   // Serializer
   p->Print(
       *vars,
@@ -1836,6 +2007,9 @@ void GenerateClient(const ServiceDescriptor* service,
   vars["Map"] = "java.util.Map";
   vars["HashMap"] = "java.util.HashMap";
   vars["Supplier"] = "java.util.function.Supplier";
+  vars["MetadataEncoder"] = "io.rsocket.ipc.MetadataEncoder";
+  vars["BackwardCompatibleMetadataEncoder"] = "io.rsocket.ipc.encoders.BackwardCompatibleMetadataEncoder";
+  vars["SimpleSpanContext"] = "io.rsocket.rpc.tracing.SimpleSpanContext";
 
   Printer printer(out, '$');
   string package_name = ServiceJavaPackage(service->file());

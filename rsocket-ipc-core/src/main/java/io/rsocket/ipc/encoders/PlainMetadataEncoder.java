@@ -17,7 +17,7 @@ public class PlainMetadataEncoder implements MetadataEncoder {
   }
 
   @Override
-  public ByteBuf encode(SpanContext context, String baseRoute, String... parts) {
+  public ByteBuf encode(ByteBuf metadata, SpanContext context, String baseRoute, String... parts) {
     ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer();
 
     StringBuilder stringBuilder = new StringBuilder();

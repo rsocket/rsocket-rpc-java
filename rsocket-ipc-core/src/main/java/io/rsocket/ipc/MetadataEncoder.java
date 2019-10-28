@@ -6,5 +6,5 @@ import io.opentracing.SpanContext;
 @FunctionalInterface
 public interface MetadataEncoder {
 
-  ByteBuf encode(SpanContext spanContext, String baseRoute, String... parts);
+  ByteBuf encode(ByteBuf metadata, SpanContext spanContext, String baseRoute, String... parts);
 }

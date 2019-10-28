@@ -12,6 +12,7 @@ import io.rsocket.ipc.frames.Metadata;
 import io.rsocket.util.NumberUtils;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
 import org.reactivestreams.Publisher;
@@ -63,6 +64,34 @@ public class Tracing {
       byteBuf.writeShort(valueLength);
       ByteBufUtil.reserveAndWriteUtf8(byteBuf, value, keyLength);
     }
+
+    return byteBuf;
+  }
+
+  public static ByteBuf mapToByteBuf(ByteBufAllocator allocator, SpanContext spanContext) {
+    if (spanContext == null) {
+      return Unpooled.EMPTY_BUFFER;
+    }
+    Iterator<Map.Entry<String, String>> iterator = spanContext.baggageItems().iterator();
+
+    if (!iterator.hasNext()) {
+      return Unpooled.EMPTY_BUFFER;
+    }
+
+    ByteBuf byteBuf = allocator.buffer();
+
+    do {
+      final Map.Entry<String, String> entry = iterator.next();
+      String key = entry.getKey();
+      int keyLength = NumberUtils.requireUnsignedShort(ByteBufUtil.utf8Bytes(key));
+      byteBuf.writeShort(keyLength);
+      ByteBufUtil.reserveAndWriteUtf8(byteBuf, key, keyLength);
+
+      String value = entry.getValue();
+      int valueLength = NumberUtils.requireUnsignedShort(ByteBufUtil.utf8Bytes(value));
+      byteBuf.writeShort(valueLength);
+      ByteBufUtil.reserveAndWriteUtf8(byteBuf, value, keyLength);
+    } while (iterator.hasNext());
 
     return byteBuf;
   }

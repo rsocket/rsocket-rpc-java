@@ -2,7 +2,6 @@ package io.rsocket.ipc.encoders;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.Unpooled;
 import io.opentracing.SpanContext;
 import io.rsocket.ipc.MetadataEncoder;
 import io.rsocket.ipc.frames.Metadata;
@@ -12,8 +11,14 @@ import java.util.Map;
 
 public class BackwardCompatibleMetadataEncoder implements MetadataEncoder {
 
+  final ByteBufAllocator allocator;
+
+  public BackwardCompatibleMetadataEncoder(ByteBufAllocator allocator) {
+    this.allocator = allocator;
+  }
+
   @Override
-  public ByteBuf encode(SpanContext context, String baseRoute, String... parts) {
+  public ByteBuf encode(ByteBuf metadata, SpanContext context, String baseRoute, String... parts) {
 
     if (parts.length != 1) {
       throw new IllegalArgumentException(
@@ -26,11 +31,10 @@ public class BackwardCompatibleMetadataEncoder implements MetadataEncoder {
         spanMap.put(item.getKey(), item.getValue());
       }
 
-      ByteBuf tracingMetadata = Tracing.mapToByteBuf(ByteBufAllocator.DEFAULT, spanMap);
-      return Metadata.encode(
-          ByteBufAllocator.DEFAULT, baseRoute, parts[0], tracingMetadata, Unpooled.EMPTY_BUFFER);
+      ByteBuf tracingMetadata = Tracing.mapToByteBuf(allocator, spanMap);
+      return Metadata.encode(allocator, baseRoute, parts[0], tracingMetadata, metadata);
     }
 
-    return Metadata.encode(ByteBufAllocator.DEFAULT, baseRoute, parts[0], Unpooled.EMPTY_BUFFER);
+    return Metadata.encode(allocator, baseRoute, parts[0], metadata);
   }
 }
