@@ -17,6 +17,7 @@ import java.util.function.Function;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Operators;
 
+@Deprecated
 public class Tracing {
   private Tracing() {}
 

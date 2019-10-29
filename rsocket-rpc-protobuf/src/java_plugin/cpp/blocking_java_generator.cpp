@@ -76,6 +76,10 @@ static inline string MethodFieldName(const MethodDescriptor* method) {
   return "METHOD_" + ToAllUpperCase(method->name());
 }
 
+static inline string RouteFieldName(const MethodDescriptor* method) {
+  return "ROUTE_" + ToAllUpperCase(method->name());
+}
+
 static inline string MessageFullJavaName(const Descriptor* desc) {
   return google::protobuf::compiler::java::ClassName(desc);
 }
@@ -304,9 +308,11 @@ static void PrintInterface(const ServiceDescriptor* service,
   for (int i = 0; i < service->method_count(); ++i) {
     const MethodDescriptor* method = service->method(i);
     (*vars)["method_field_name"] = MethodFieldName(method);
+    (*vars)["route_field_name"] = RouteFieldName(method);
     (*vars)["method_name"] = method->name();
 
     p->Print(*vars, "String $method_field_name$ = \"$method_name$\";\n");
+    p->Print(*vars, "String $route_field_name$ = $service_field_name$ + \".\" + $method_field_name$;\n");
   }
 
   // RPC methods
@@ -377,7 +383,7 @@ static void PrintClient(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "private final $PackageName$.$client_class_name$ delegate;\n");
-
+  // RSocket only
   p->Print(
       *vars,
       "\n"
@@ -390,6 +396,20 @@ static void PrintClient(const ServiceDescriptor* service,
   p->Outdent();
   p->Print("}\n\n");
 
+  // RSocket And Encoder
+  p->Print(
+      *vars,
+      "\n"
+      "public Blocking$client_class_name$($RSocket$ rSocket, $MetadataEncoder$ metadataEncoder) {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "this.delegate = new $PackageName$.$client_class_name$(rSocket, metadataEncoder);\n");
+
+  p->Outdent();
+  p->Print("}\n\n");
+
+  // RSocket and Metrics
   p->Print(
       *vars,
       "public Blocking$client_class_name$($RSocket$ rSocket, $MeterRegistry$ registry) {\n");
@@ -397,6 +417,18 @@ static void PrintClient(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "this.delegate = new $PackageName$.$client_class_name$(rSocket, registry);\n");
+
+  p->Outdent();
+  p->Print("}\n\n");
+
+  // RSocket and Encoder and Metrics
+  p->Print(
+      *vars,
+      "public Blocking$client_class_name$($RSocket$ rSocket, $MetadataEncoder$ metadataEncoder, $MeterRegistry$ registry) {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "this.delegate = new $PackageName$.$client_class_name$(rSocket, metadataEncoder, registry);\n");
 
   p->Outdent();
   p->Print("}\n\n");
@@ -598,10 +630,8 @@ static void PrintServer(const ServiceDescriptor* service,
 
   p->Print(
       *vars,
-      "private final Blocking$service_name$ service;\n");
-
-  p->Print(
-      *vars,
+      "private final Blocking$service_name$ service;\n"
+      "private final $MetadataDecoder$ metadataDecoder;\n"
       "private final $Scheduler$ scheduler;\n");
 
   // RPC metrics
@@ -636,7 +666,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "@$Inject$\n"
-      "public Blocking$server_class_name$(Blocking$service_name$ service, $Optional$<$Scheduler$> scheduler, $Optional$<$MeterRegistry$> registry) {\n");
+      "public Blocking$server_class_name$(Blocking$service_name$ service, $Optional$<$MetadataDecoder$> metadataDecoder, $Optional$<$Scheduler$> scheduler, $Optional$<$MeterRegistry$> registry) {\n");
   p->Indent();
   p->Print(
       *vars,
@@ -677,8 +707,27 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Outdent();
     p->Print("}\n\n");
 
+  // if metadataDecoder present {
+    p->Print(
+        *vars,
+        "if (metadataDecoder.isPresent()) {\n"
+    );
+    p->Indent();
+    p->Print(
+       *vars,
+       "this.metadataDecoder = metadataDecoder.get();\n");
     p->Outdent();
-    p->Print("}\n\n");
+    p->Print("} else {\n");
+    p->Indent();
+    p->Print(
+       *vars,
+       "this.metadataDecoder = new $CompositeMetadataDecoder$();\n");
+    p->Outdent();
+    p->Print("}\n");
+  // }
+
+  p->Outdent();
+  p->Print("}\n\n");
 
   p->Print(
       *vars,
@@ -728,67 +777,116 @@ static void PrintServer(const ServiceDescriptor* service,
 
   // Fire and forget
   p->Print(
-      *vars,
-      "@$Override$\n"
-      "public $Mono$<Void> fireAndForget($Payload$ payload) {\n");
+    *vars,
+    "@$Override$\n"
+    "public $Mono$<$Void$> fireAndForget($Payload$ payload) {\n");
   p->Indent();
   if (fire_and_forget.empty()) {
     p->Print(
         *vars,
-        "return $Mono$.error(new UnsupportedOperationException(\"Fire and forget not implemented.\"));\n");
+        "return $Mono$.error(new UnsupportedOperationException(\"Fire And Forget is not implemented.\"));\n");
   } else {
     p->Print(
+      *vars,
+      "try {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "$Mono$<$Void$> response = metadataDecoder.decode(payload, this::doDecodeAndHandleFireAndForget);\n\n"
+      "payload.release();\n\n"
+      "return response;\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+      "} catch (Throwable t) {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "payload.release();\n"
+      "return $Mono$.error(t);\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+     "}\n");
+  }
+  p->Outdent();
+  p->Print(
+    *vars,
+   "}\n\n");
+
+
+  // Do Decode And Fire and forget delegate
+  p->Print(
+    *vars,
+    "$Mono$<Void> doDecodeAndHandleFireAndForget(\n");
+  p->Indent();
+  p->Print(
+    *vars,
+    "$ByteBuf$ data,\n"
+    "$ByteBuf$ metadata,\n"
+    "$String$ route,\n"
+    "$SpanContext$ spanContext\n");
+  p->Outdent();
+  p->Print(
+      *vars,
+      ") throws $Exception$ {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "switch(route) {\n");
+  p->Indent();
+  for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
         *vars,
-        "try {\n");
+        "case $service_name$.$route_field_name$: {\n");
     p->Indent();
     p->Print(
         *vars,
-        "$ByteBuf$ metadata = payload.sliceMetadata();\n"
-        "switch($RSocketRpcMetadata$.getMethod(metadata)) {\n");
-    p->Indent();
-    for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
-      const MethodDescriptor* method = *it;
-      (*vars)["input_type"] = MessageFullJavaName(method->input_type());
-      (*vars)["lower_method_name"] = LowerMethodName(method);
-      (*vars)["method_id_name"] = MethodFieldName(method);
-      p->Print(
-          *vars,
-          "case $service_name$.$method_id_name$: {\n");
-      p->Indent();
-      p->Print(
-          *vars,
-          "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-          "$input_type$ message = $input_type$.parseFrom(is);\n"
-          "return $Mono$.<Void>fromRunnable(()->service.$lower_method_name$(message, metadata)).subscribeOn(scheduler);\n");
-      p->Outdent();
-      p->Print("}\n");
-    }
-    p->Print(
-        *vars,
-        "default: {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Mono$.error(new UnsupportedOperationException());\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("} catch (Throwable t) {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Mono$.error(t);\n");
-    p->Outdent();
-    p->Print("} finally {\n");
-    p->Indent();
-    p->Print("payload.release();\n");
+        "return this.do$method_name$FireAndForget(data, metadata, spanContext);\n");
     p->Outdent();
     p->Print("}\n");
   }
+  p->Print(
+      *vars,
+      "default: {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "return $Mono$.error(new UnsupportedOperationException());\n");
+  p->Outdent();
+  p->Print("}\n");
+  p->Outdent();
+  p->Print("}\n");
   p->Outdent();
   p->Print("}\n\n");
+
+
+  // Do Service Fire-And-Forget
+  for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(method->output_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "private $Mono$<$Void$> do$method_name$FireAndForget($ByteBuf$ data, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+    );
+    p->Indent();
+    p->Print(
+        *vars,
+        "$CodedInputStream$ is = $CodedInputStream$.newInstance(data.nioBuffer());\n"
+        "$input_type$ message = $input_type$.parseFrom(is);\n"
+        "return $Mono$.<Void>fromRunnable(() -> service.$lower_method_name$(message, metadata)).subscribeOn(scheduler);\n");
+    p->Outdent();
+    p->Print("}\n");
+    p->Print("\n");
+  }
 
   // Request-Response
   p->Print(
@@ -799,61 +897,108 @@ static void PrintServer(const ServiceDescriptor* service,
   if (request_response.empty()) {
     p->Print(
         *vars,
-        "return $Mono$.error(new UnsupportedOperationException(\"Request-Response not implemented.\"));\n");
+        "return $Mono$.error(new UnsupportedOperationException(\"Request Response is not implemented.\"));\n");
   } else {
     p->Print(
+      *vars,
+      "try {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "$Mono$<$Payload$> response = metadataDecoder.decode(payload, this::doDecodeAndHandleRequestResponse);\n\n"
+      "payload.release();\n\n"
+      "return response;\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+      "} catch (Throwable t) {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "payload.release();\n"
+      "return $Mono$.error(t);\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+     "}\n");
+  }
+  p->Outdent();
+  p->Print(
+    *vars,
+   "}\n\n");
+
+  // Do Decode And Request Response delegate
+  p->Print(
+    *vars,
+    "$Mono$<$Payload$> doDecodeAndHandleRequestResponse(\n");
+  p->Indent();
+  p->Print(
+    *vars,
+    "$ByteBuf$ data,\n"
+    "$ByteBuf$ metadata,\n"
+    "$String$ route,\n"
+    "$SpanContext$ spanContext\n");
+  p->Outdent();
+  p->Print(
+      *vars,
+      ") throws $Exception$ {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "switch(route) {\n");
+  p->Indent();
+  for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
         *vars,
-        "try {\n");
+        "case $service_name$.$route_field_name$: {\n");
     p->Indent();
     p->Print(
         *vars,
-        "$ByteBuf$ metadata = payload.sliceMetadata();\n"
-        "switch($RSocketRpcMetadata$.getMethod(metadata)) {\n");
-    p->Indent();
-    for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
-      const MethodDescriptor* method = *it;
-      (*vars)["input_type"] = MessageFullJavaName(method->input_type());
-      (*vars)["output_type"] = MessageFullJavaName(method->output_type());
-      (*vars)["lower_method_name"] = LowerMethodName(method);
-      (*vars)["method_id_name"] = MethodFieldName(method);
-      p->Print(
-          *vars,
-          "case $service_name$.$method_id_name$: {\n");
-      p->Indent();
-      p->Print(
-          *vars,
-          "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-          "$input_type$ message = $input_type$.parseFrom(is);\n"
-          "return $Mono$.fromSupplier(() -> service.$lower_method_name$(message, metadata)).map(serializer).transform($lower_method_name$).subscribeOn(scheduler);\n");
-      p->Outdent();
-      p->Print("}\n");
-    }
-    p->Print(
-        *vars,
-        "default: {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Mono$.error(new UnsupportedOperationException());\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("} catch (Throwable t) {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Mono$.error(t);\n");
-    p->Outdent();
-    p->Print("} finally {\n");
-    p->Indent();
-    p->Print("payload.release();\n");
+        "return this.do$method_name$RequestResponse(data, metadata, spanContext);\n");
     p->Outdent();
     p->Print("}\n");
   }
+  p->Print(
+      *vars,
+      "default: {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "return $Mono$.error(new UnsupportedOperationException());\n");
+  p->Outdent();
+  p->Print("}\n");
+  p->Outdent();
+  p->Print("}\n");
   p->Outdent();
   p->Print("}\n\n");
+
+  // Do Request-Response
+  for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(method->output_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "private $Mono$<$Payload$> do$method_name$RequestResponse($ByteBuf$ data, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+    );
+    p->Indent();
+    p->Print(
+        *vars,
+        "$CodedInputStream$ is = $CodedInputStream$.newInstance(data.nioBuffer());\n"
+        "$input_type$ message = $input_type$.parseFrom(is);\n"
+        "return $Mono$.fromSupplier(() -> service.$lower_method_name$(message, metadata)).map(serializer).transform($lower_method_name$).subscribeOn(scheduler);\n");
+    p->Outdent();
+    p->Print("}\n");
+    p->Print("\n");
+  }
+
 
   // Request-Stream
   p->Print(
@@ -864,110 +1009,144 @@ static void PrintServer(const ServiceDescriptor* service,
   if (request_stream.empty()) {
     p->Print(
         *vars,
-        "return $Flux$.error(new UnsupportedOperationException(\"Request-Stream not implemented.\"));\n");
+        "return $Flux$.error(new UnsupportedOperationException(\"Request Stream is not implemented.\"));\n");
   } else {
     p->Print(
+      *vars,
+      "try {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "$Flux$<$Payload$> response = metadataDecoder.decode(payload, this::doDecodeAndHandleRequestStream);\n\n"
+      "payload.release();\n\n"
+      "return response;\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+      "} catch (Throwable t) {\n");
+    p->Indent();
+    p->Print(
+      *vars,
+      "payload.release();\n"
+      "return $Flux$.error(t);\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+     "}\n");
+  }
+  p->Outdent();
+  p->Print(
+    *vars,
+   "}\n\n");
+
+  // Do Decode And Request Stream delegate
+  p->Print(
+    *vars,
+    "$Flux$<$Payload$> doDecodeAndHandleRequestStream(\n");
+  p->Indent();
+  p->Print(
+    *vars,
+    "$ByteBuf$ data,\n"
+    "$ByteBuf$ metadata,\n"
+    "$String$ route,\n"
+    "$SpanContext$ spanContext\n");
+  p->Outdent();
+  p->Print(
+      *vars,
+      ") throws $Exception$ {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "switch(route) {\n");
+  p->Indent();
+  for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
         *vars,
-        "try {\n");
+        "case $service_name$.$route_field_name$: {\n");
     p->Indent();
     p->Print(
         *vars,
-        "$ByteBuf$ metadata = payload.sliceMetadata();\n"
-        "switch($RSocketRpcMetadata$.getMethod(metadata)) {\n");
-    p->Indent();
-    for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
-      const MethodDescriptor* method = *it;
-      (*vars)["input_type"] = MessageFullJavaName(method->input_type());
-      (*vars)["output_type"] = MessageFullJavaName(method->output_type());
-      (*vars)["lower_method_name"] = LowerMethodName(method);
-      (*vars)["method_id_name"] = MethodFieldName(method);
-      p->Print(
-          *vars,
-          "case Blocking$service_name$.$method_id_name$: {\n");
-      p->Indent();
-      p->Print(
-          *vars,
-          "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-          "$input_type$ message = $input_type$.parseFrom(is);\n"
-          "return $Flux$.defer(() -> $Flux$.fromIterable(service.$lower_method_name$(message, metadata)).map(serializer).transform($lower_method_name$)).subscribeOn(scheduler);\n");
-      p->Outdent();
-      p->Print("}\n");
-    }
-    p->Print(
-        *vars,
-        "default: {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Flux$.error(new UnsupportedOperationException());\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("}\n");
-    p->Outdent();
-    p->Print("} catch (Throwable t) {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "return $Flux$.error(t);\n");
-    p->Outdent();
-    p->Print("} finally {\n");
-    p->Indent();
-    p->Print("payload.release();\n");
+        "return this.do$method_name$RequestStream(data, metadata, spanContext);\n");
     p->Outdent();
     p->Print("}\n");
   }
+  p->Print(
+      *vars,
+      "default: {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "return $Flux$.error(new UnsupportedOperationException());\n");
+  p->Outdent();
+  p->Print("}\n");
+  p->Outdent();
+  p->Print("}\n");
   p->Outdent();
   p->Print("}\n\n");
+
+  // Do Service Request-Stream
+  for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(method->output_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "private $Flux$<$Payload$> do$method_name$RequestStream($ByteBuf$ data, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+    );
+    p->Indent();
+    p->Print(
+        *vars,
+        "$CodedInputStream$ is = $CodedInputStream$.newInstance(data.nioBuffer());\n"
+        "$input_type$ message = $input_type$.parseFrom(is);\n"
+                  "return $Flux$.defer(() -> $Flux$.fromIterable(service.$lower_method_name$(message, metadata)).map(serializer).transform($lower_method_name$)).subscribeOn(scheduler);\n");
+    p->Outdent();
+    p->Print("}\n");
+    p->Print("\n");
+  }
 
   // Request-Channel
   p->Print(
       *vars,
       "@$Override$\n"
-      "public $Flux$<$Payload$> requestChannel($Payload$ payload, $Flux$<$Payload$> publisher) {\n");
+      "public $Flux$<$Payload$> requestChannel($Payload$ payload, $Publisher$<$Payload$> payloads) {\n");
   p->Indent();
   if (request_channel.empty()) {
     p->Print(
         *vars,
-        "return $Flux$.error(new UnsupportedOperationException(\"Request-Channel not implemented.\"));\n");
+        "return $Flux$.error(new UnsupportedOperationException(\"Request Channel is not implemented.\"));\n");
   } else {
     p->Print(
-        *vars,
-        "try {\n");
+      *vars,
+      "try {\n");
     p->Indent();
     p->Print(
+      *vars,
+      "$Flux$<$Payload$> response = metadataDecoder.decode(payload, ($ByteBuf$ data, $ByteBuf$ metadata, $String$ route, $SpanContext$ spanContext) -> {\n");
+    p->Indent();
+
+    p->Print(
         *vars,
-        "$ByteBuf$ metadata = payload.sliceMetadata();\n"
-        "switch($RSocketRpcMetadata$.getMethod(metadata)) {\n");
+        "switch(route) {\n");
     p->Indent();
     for (vector<const MethodDescriptor*>::iterator it = request_channel.begin(); it != request_channel.end(); ++it) {
       const MethodDescriptor* method = *it;
       (*vars)["input_type"] = MessageFullJavaName(method->input_type());
-      (*vars)["output_type"] = MessageFullJavaName(method->output_type());
-      (*vars)["lower_method_name"] = LowerMethodName(method);
-      (*vars)["method_id_name"] = MethodFieldName(method);
+      (*vars)["method_name"] = method->name();
+      (*vars)["route_field_name"] = RouteFieldName(method);
       p->Print(
           *vars,
-          "case Blocking$service_name$.$method_id_name$: {\n");
+          "case $service_name$.$route_field_name$: {\n");
       p->Indent();
       p->Print(
           *vars,
-          "$Flux$<$input_type$> messages =\n");
-      p->Indent();
-      p->Print(
-          *vars,
-          "publisher.map(deserializer($input_type$.parser()));\n");
-      p->Outdent();
-      if (method->server_streaming()) {
-        p->Print(
-            *vars,
-            "return $Flux$.defer(() -> $Flux$.fromIterable(service.$lower_method_name$(messages.toIterable(), metadata)).map(serializer).transform($lower_method_name$)).subscribeOn(scheduler);\n");
-      } else {
-        p->Print(
-            *vars,
-            "return $Mono$.fromSupplier(() -> service.$lower_method_name$(messages.toIterable(), metadata)).map(serializer).transform($lower_method_name$).$flux$().subscribeOn(scheduler);\n");
-      }
-
+          "return this.do$method_name$RequestChannel($Flux$.from(payloads), data, metadata, spanContext);\n");
       p->Outdent();
       p->Print("}\n");
     }
@@ -977,22 +1156,33 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
         *vars,
+        "payload.release();\n"
         "return $Flux$.error(new UnsupportedOperationException());\n");
     p->Outdent();
     p->Print("}\n");
     p->Outdent();
     p->Print("}\n");
     p->Outdent();
-    p->Print("} catch (Throwable t) {\n");
+    p->Print("});\n\n");
+    p->Print("return response;\n");
+    p->Outdent();
+    p->Print(
+      *vars,
+      "} catch (Throwable t) {\n");
     p->Indent();
     p->Print(
-        *vars,
-        "return $Flux$.error(t);\n");
+      *vars,
+      "payload.release();\n"
+      "return $Flux$.error(t);\n");
     p->Outdent();
-    p->Print("}\n");
+    p->Print(
+      *vars,
+     "}\n");
   }
   p->Outdent();
-  p->Print("}\n\n");
+  p->Print(
+    *vars,
+   "}\n\n");
 
   p->Print(
       *vars,
@@ -1006,16 +1196,28 @@ static void PrintServer(const ServiceDescriptor* service,
   } else {
     p->Print(
         *vars,
-        "return new $SwitchTransformFlux$<$Payload$, $Payload$>(payloads, new $BiFunction$<$Payload$, $Flux$<$Payload$>, $Publisher$<? extends $Payload$>>() {\n");
+        "return $Flux$.from(payloads).switchOnFirst(new $BiFunction$<$Signal$<? extends $Payload$>, $Flux$<$Payload$>, $Publisher$<? extends $Payload$>>() {\n");
     p->Indent();
     p->Print(
         *vars,
         "@$Override$\n"
-        "public $Publisher$<$Payload$> apply($Payload$ payload, $Flux$<$Payload$> publisher) {\n");
+        "public $Publisher$<$Payload$> apply($Signal$<? extends $Payload$> payloadSignal, $Flux$<$Payload$> publisher) {\n");
     p->Indent();
     p->Print(
         *vars,
-        "return requestChannel(payload, publisher);\n");
+        "if (payloadSignal.hasValue()) {\n");
+    p->Indent();
+    p->Print(
+            *vars,
+            "return requestChannel(payloadSignal.get(), publisher);\n");
+    p->Outdent();
+    p->Print(
+            *vars,
+            "} else {\n");
+    p->Indent();
+    p->Print("return publisher;\n");
+    p->Outdent();
+    p->Print("}\n");
     p->Outdent();
     p->Print("}\n");
     p->Outdent();
@@ -1023,6 +1225,84 @@ static void PrintServer(const ServiceDescriptor* service,
   }
   p->Outdent();
   p->Print("}\n\n");
+
+  // Do Request-Channel
+  for (vector<const MethodDescriptor*>::iterator it = request_channel.begin(); it != request_channel.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["input_type"] = MessageFullJavaName(method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(method->output_type());
+    (*vars)["method_name"] = method->name();
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+
+    p->Print(
+        *vars,
+        "private $Flux$<$Payload$> do$method_name$RequestChannel($Flux$<$Payload$> publisher, $ByteBuf$ data, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+    );
+    p->Indent();
+    p->Print(
+        *vars,
+        "$Flux$<$input_type$> messages =\n");
+    p->Indent();
+    p->Print(
+        *vars,
+        "publisher.map(deserializer($input_type$.parser()));\n");
+    p->Outdent();
+    if (method->server_streaming()) {
+      p->Print(
+          *vars,
+          "return $Flux$.defer(() -> $Flux$.fromIterable(service.$lower_method_name$(messages.toIterable(), metadata)).map(serializer).transform($lower_method_name$)).subscribeOn(scheduler);\n");
+    } else {
+      p->Print(
+          *vars,
+          "return $Mono$.fromSupplier(() -> service.$lower_method_name$(messages.toIterable(), metadata)).map(serializer).transform($lower_method_name$).$flux$().subscribeOn(scheduler);\n");
+    }
+    p->Outdent();
+    p->Print("}\n");
+    p->Print("\n");
+  }
+
+  // Self Registration
+
+  p->Print(
+    *vars,
+    "@$Override$\n"
+    "public void selfRegister($Map$<$String$, $IPCFunction$<$Mono$<$Void$>>> fireAndForgetRegistry, $Map$<$String$, $IPCFunction$<$Mono$<$Payload$>>> requestResponseRegistry, $Map$<$String$, $IPCFunction$<$Flux$<$Payload$>>> requestStreamRegistry, $Map$<$String$, $IPCChannelFunction$> requestChannelRegistry) {\n");
+  p->Indent();
+  for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
+        *vars,
+        "fireAndForgetRegistry.put($service_name$.$route_field_name$, this::do$method_name$FireAndForget);\n");
+  }
+  for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
+        *vars,
+        "requestResponseRegistry.put($service_name$.$route_field_name$, this::do$method_name$RequestResponse);\n");
+  }
+  for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
+        *vars,
+        "requestStreamRegistry.put($service_name$.$route_field_name$, this::do$method_name$RequestStream);\n");
+  }
+  for (vector<const MethodDescriptor*>::iterator it = request_channel.begin(); it != request_channel.end(); ++it) {
+    const MethodDescriptor* method = *it;
+    (*vars)["method_name"] = method->name();
+    (*vars)["route_field_name"] = RouteFieldName(method);
+    p->Print(
+        *vars,
+        "requestChannelRegistry.put($service_name$.$route_field_name$, this::do$method_name$RequestChannel);\n");
+  }
+  p->Outdent();
+  p->Print("}\n");
+  p->Print("\n");
 
   // Serializer
   p->Print(
@@ -1172,6 +1452,13 @@ void GenerateClient(const ServiceDescriptor* service,
   vars["PackageName"] = ServiceJavaPackage(service->file());
   vars["Queues"] = "reactor.util.concurrent.Queues";
   vars["RSocketRpcGeneratedMethod"] = "io.rsocket.rpc.annotations.internal.GeneratedMethod";
+  vars["Tag"] = "io.rsocket.rpc.tracing.Tag";
+  vars["Map"] = "java.util.Map";
+  vars["HashMap"] = "java.util.HashMap";
+  vars["Supplier"] = "java.util.function.Supplier";
+  vars["MetadataEncoder"] = "io.rsocket.ipc.MetadataEncoder";
+  vars["BackwardCompatibleMetadataEncoder"] = "io.rsocket.ipc.encoders.BackwardCompatibleMetadataEncoder";
+  vars["SimpleSpanContext"] = "io.rsocket.ipc.tracing.SimpleSpanContext";
 
   Printer printer(out, '$');
     string package_name = ServiceJavaPackage(service->file());
@@ -1231,6 +1518,19 @@ void GenerateServer(const ServiceDescriptor* service,
   vars["Optional"] = "java.util.Optional";
   vars["Inject"] = "javax.inject.Inject";
   vars["Named"] = "javax.inject.Named";
+  vars["RSocketRpcResourceType"] = "io.rsocket.rpc.annotations.internal.ResourceType";
+  vars["Tag"] = "io.rsocket.rpc.tracing.Tag";
+  vars["SpanContext"] = "io.opentracing.SpanContext";
+  vars["Tracer"] = "io.opentracing.Tracer";
+  vars["Map"] = "java.util.Map";
+  vars["IPCFunction"] = "io.rsocket.ipc.util.IPCFunction";
+  vars["IPCChannelFunction"] = "io.rsocket.ipc.util.IPCChannelFunction";
+  vars["String"] = "java.lang.String";
+  vars["Void"] = "java.lang.Void";
+  vars["Signal"] = "reactor.core.publisher.Signal";
+  vars["Exception"] = "java.lang.Exception";
+  vars["MetadataDecoder"] = "io.rsocket.ipc.MetadataDecoder";
+  vars["CompositeMetadataDecoder"] = "io.rsocket.ipc.decoders.CompositeMetadataDecoder";
 
   Printer printer(out, '$');
     string package_name = ServiceJavaPackage(service->file());

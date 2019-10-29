@@ -6,7 +6,11 @@ import io.rsocket.RSocket;
 import io.rsocket.ipc.Client;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataEncoder;
 import io.rsocket.ipc.Unmarshaller;
+import io.rsocket.ipc.encoders.CompositeMetadataEncoder;
+import io.rsocket.ipc.encoders.PlainMetadataEncoder;
+import java.nio.charset.Charset;
 import java.util.Objects;
 
 @SuppressWarnings({"unchecked", "unused"})
@@ -14,7 +18,15 @@ public final class GraphQLClient {
   GraphQLClient() {}
 
   public interface R {
-    M rsocket(RSocket rSocket);
+    E rsocket(RSocket rSocket);
+  }
+
+  public interface E {
+    M compositeMetadataEncoder();
+
+    M plainMetadataEncoder();
+
+    M customMetadataEncoder(MetadataEncoder encoder);
   }
 
   public interface M {
@@ -45,10 +57,11 @@ public final class GraphQLClient {
     Subscription<T> subscription();
   }
 
-  private static class Builder<O> implements R, P, U, C<O>, M, T {
+  private static class Builder<O> implements R, P, U, C<O>, M, E, T {
     private final String service;
     private Marshaller<GraphQLRequest> marshaller;
     private Unmarshaller unmarshaller;
+    private MetadataEncoder encoder;
     private RSocket rsocket;
     private MeterRegistry meterRegistry;
     private Tracer tracer;
@@ -92,8 +105,26 @@ public final class GraphQLClient {
     }
 
     @Override
-    public M rsocket(RSocket rsocket) {
+    public E rsocket(RSocket rsocket) {
       this.rsocket = Objects.requireNonNull(rsocket);
+      return this;
+    }
+
+    @Override
+    public M compositeMetadataEncoder() {
+      this.encoder = new CompositeMetadataEncoder();
+      return this;
+    }
+
+    @Override
+    public M plainMetadataEncoder() {
+      this.encoder = new PlainMetadataEncoder(".", Charset.defaultCharset());
+      return this;
+    }
+
+    @Override
+    public M customMetadataEncoder(MetadataEncoder encoder) {
+      this.encoder = encoder;
       return this;
     }
 
@@ -103,7 +134,8 @@ public final class GraphQLClient {
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
 
-      Client.M rsocket = Client.service(service).rsocket(this.rsocket);
+      Client.M rsocket =
+          Client.service(service).rsocket(this.rsocket).customMetadataEncoder(encoder);
 
       Client.T t;
       if (meterRegistry != null) {

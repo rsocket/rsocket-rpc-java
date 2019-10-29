@@ -60,7 +60,7 @@ public final class GraphQLServer {
   }
 
   public interface T<O> {
-    IPCRSocket rsocket();
+    IPCRSocket toIPCRSocket();
   }
 
   private static class Builder implements D, I, S, R, U, P, T, M, TR {
@@ -93,7 +93,6 @@ public final class GraphQLServer {
     @Override
     public I dataLoadRegister(DataLoaderRegistry dataLoadRegistry) {
       this.dataLoadRegistry = Objects.requireNonNull(dataLoadRegistry);
-      ;
       return this;
     }
 
@@ -136,7 +135,7 @@ public final class GraphQLServer {
     }
 
     @Override
-    public IPCRSocket rsocket() {
+    public IPCRSocket toIPCRSocket() {
       Server.M service = Server.service(this.service);
 
       Server.T t;
@@ -164,7 +163,7 @@ public final class GraphQLServer {
           .requestStream(
               "Subscription",
               new GraphQLServerRequestStream(dataLoadRegistry, instrumentation, schema))
-          .rsocket();
+          .toIPCRSocket();
     }
 
     @Override

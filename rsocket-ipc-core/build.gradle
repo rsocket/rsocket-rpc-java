@@ -1,11 +1,10 @@
 plugins {
-    id 'io.spring.dependency-management' version '1.0.7.RELEASE'
+    id 'io.spring.dependency-management' version '1.0.8.RELEASE'
 }
 
 description = 'RSocket IPC Library'
 
 dependencies {
-    compile project (':rsocket-rpc-core')
     implementation 'org.slf4j:slf4j-api'
 
     api 'io.opentracing:opentracing-api'

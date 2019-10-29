@@ -9,6 +9,7 @@ import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Operators;
 import reactor.util.context.Context;
 
+@Deprecated
 public class MetricsSubscriber<T> extends AtomicBoolean implements Subscription, CoreSubscriber<T> {
   private final CoreSubscriber<? super T> actual;
   private final Counter next, complete, error, cancelled;

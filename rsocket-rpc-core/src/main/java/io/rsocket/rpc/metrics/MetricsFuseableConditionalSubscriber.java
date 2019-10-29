@@ -14,6 +14,7 @@ import reactor.core.publisher.Operators;
 import reactor.util.annotation.Nullable;
 import reactor.util.context.Context;
 
+@Deprecated
 public class MetricsFuseableConditionalSubscriber<T> extends AtomicBoolean
     implements QueueSubscription<T>, ConditionalSubscriber<T> {
   private final ConditionalSubscriber<? super T> actual;

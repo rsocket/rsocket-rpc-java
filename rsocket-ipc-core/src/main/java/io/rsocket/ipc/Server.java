@@ -16,14 +16,29 @@
 package io.rsocket.ipc;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.netty.buffer.ByteBuf;
 import io.opentracing.Tracer;
-import io.rsocket.ipc.util.TriFunction;
+import io.rsocket.Payload;
+import io.rsocket.ipc.util.IPCChannelFunction;
+import io.rsocket.ipc.util.IPCFireAndForgetFunction;
+import io.rsocket.ipc.util.IPCFunction;
+import io.rsocket.ipc.util.IPCMetricsAwareFireAndForgetFunction;
+import io.rsocket.ipc.util.IPCMetricsAwareRequestChannelFunction;
+import io.rsocket.ipc.util.IPCMetricsAwareRequestResponseFunction;
+import io.rsocket.ipc.util.IPCMetricsAwareRequestStreamFunction;
+import io.rsocket.ipc.util.IPCRequestChannelFunction;
+import io.rsocket.ipc.util.IPCRequestResponseFunction;
+import io.rsocket.ipc.util.IPCRequestStreamFunction;
+import io.rsocket.ipc.util.IPCTracingAndMetricsAwareFireAndForgetFunction;
+import io.rsocket.ipc.util.IPCTracingAndMetricsAwareRequestChannelFunction;
+import io.rsocket.ipc.util.IPCTracingAndMetricsAwareRequestResponseFunction;
+import io.rsocket.ipc.util.IPCTracingAndMetricsAwareRequestStreamFunction;
+import io.rsocket.ipc.util.IPCTracingAwareFireAndForgetFunction;
+import io.rsocket.ipc.util.IPCTracingAwareRequestChannelFunction;
+import io.rsocket.ipc.util.IPCTracingAwareRequestResponseFunction;
+import io.rsocket.ipc.util.IPCTracingAwareRequestStreamFunction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiFunction;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -99,58 +114,9 @@ public final class Server {
         Marshaller<X> marshaller,
         Functions.RequestStream<Y, X> rs);
 
-    IPCRSocket rsocket();
-  }
+    IPCRSocket toIPCRSocket();
 
-  static class RRContext {
-    final BiFunction<Object, ByteBuf, Mono> rr;
-    final Marshaller marshaller;
-    final Unmarshaller unmarshaller;
-
-    public RRContext(
-        BiFunction<Object, ByteBuf, Mono> rr, Marshaller marshaller, Unmarshaller unmarshaller) {
-      this.rr = rr;
-      this.marshaller = marshaller;
-      this.unmarshaller = unmarshaller;
-    }
-  }
-
-  static class RCContext {
-    final TriFunction<Object, Publisher, ByteBuf, Flux> rc;
-    final Marshaller marshaller;
-    final Unmarshaller unmarshaller;
-
-    public RCContext(
-        TriFunction<Object, Publisher, ByteBuf, Flux> rc,
-        Marshaller marshaller,
-        Unmarshaller unmarshaller) {
-      this.rc = rc;
-      this.marshaller = marshaller;
-      this.unmarshaller = unmarshaller;
-    }
-  }
-
-  static class RSContext {
-    final BiFunction<Object, ByteBuf, Flux> rs;
-    final Marshaller marshaller;
-    final Unmarshaller unmarshaller;
-
-    public RSContext(
-        BiFunction<Object, ByteBuf, Flux> rs, Marshaller marshaller, Unmarshaller unmarshaller) {
-      this.rs = rs;
-      this.marshaller = marshaller;
-      this.unmarshaller = unmarshaller;
-    }
-  }
-
-  static class FFContext {
-    final BiFunction<Object, ByteBuf, Mono<Void>> ff;
-    final Unmarshaller unmarshaller;
-
-    public FFContext(BiFunction<Object, ByteBuf, Mono<Void>> ff, Unmarshaller unmarshaller) {
-      this.ff = ff;
-      this.unmarshaller = unmarshaller;
-    }
+    SelfRegistrable toSelfRegistrable();
   }
 
   @SuppressWarnings("unchecked")
@@ -160,16 +126,17 @@ public final class Server {
     private MeterRegistry meterRegistry;
     private Tracer tracer;
     private Unmarshaller unmarshaller;
-    private final Map<String, RRContext> rr;
-    private final Map<String, RCContext> rc;
-    private final Map<String, RSContext> rs;
-    private final Map<String, FFContext> ff;
+
+    private final Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry;
+    private final Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry;
+    private final Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry;
+    private final Map<String, IPCChannelFunction> requestChannelRegistry;
 
     private Builder(String service) {
-      this.rr = new HashMap<>();
-      this.rc = new HashMap<>();
-      this.rs = new HashMap<>();
-      this.ff = new HashMap<>();
+      this.requestResponseRegistry = new HashMap<>();
+      this.requestChannelRegistry = new HashMap<>();
+      this.requestStreamRegistry = new HashMap<>();
+      this.fireAndForgetRegistry = new HashMap<>();
       this.service = service;
     }
 
@@ -208,111 +175,210 @@ public final class Server {
     }
 
     @Override
-    public H requestResponse(String route, Functions.RequestResponse rr) {
-      return requestResponse(route, unmarshaller, marshaller, rr);
+    public H requestResponse(String method, Functions.RequestResponse rr) {
+      return requestResponse(method, unmarshaller, marshaller, rr);
     }
 
     @Override
-    public H requestChannel(String route, Functions.HandleRequestHandle rc) {
-      return requestChannel(route, unmarshaller, marshaller, rc);
+    public H requestChannel(String method, Functions.HandleRequestHandle rc) {
+      return requestChannel(method, unmarshaller, marshaller, rc);
     }
 
     @Override
-    public H requestStream(String route, Functions.RequestStream rs) {
-      return requestStream(route, unmarshaller, marshaller, rs);
+    public H requestStream(String method, Functions.RequestStream rs) {
+      return requestStream(method, unmarshaller, marshaller, rs);
     }
 
     @Override
-    public H fireAndForget(String route, Functions.FireAndForget ff) {
-      return fireAndForget(route, unmarshaller, ff);
+    public H fireAndForget(String method, Functions.FireAndForget ff) {
+      return fireAndForget(method, unmarshaller, ff);
     }
 
     @Override
-    public H requestResponse(String route, Marshaller marshaller, Functions.RequestResponse rr) {
-      return requestResponse(route, unmarshaller, marshaller, rr);
-    }
-
-    @Override
-    public H requestChannel(String route, Marshaller marshaller, Functions.HandleRequestHandle rc) {
-      return requestChannel(route, unmarshaller, marshaller, rc);
-    }
-
-    @Override
-    public H requestStream(String route, Marshaller marshaller, Functions.RequestStream rs) {
-      return requestStream(route, unmarshaller, marshaller, rs);
-    }
-
-    @Override
-    public H requestResponse(
-        String route, Unmarshaller unmarshaller, Functions.RequestResponse rr) {
-      return requestResponse(route, unmarshaller, marshaller, rr);
+    public H requestResponse(String method, Marshaller marshaller, Functions.RequestResponse rr) {
+      return requestResponse(method, unmarshaller, marshaller, rr);
     }
 
     @Override
     public H requestChannel(
-        String route, Unmarshaller unmarshaller, Functions.HandleRequestHandle rc) {
-      return requestChannel(route, unmarshaller, marshaller, rc);
+        String method, Marshaller marshaller, Functions.HandleRequestHandle rc) {
+      return requestChannel(method, unmarshaller, marshaller, rc);
     }
 
     @Override
-    public H requestStream(String route, Unmarshaller unmarshaller, Functions.RequestStream rs) {
-      return requestStream(route, unmarshaller, marshaller, rs);
+    public H requestStream(String method, Marshaller marshaller, Functions.RequestStream rs) {
+      return requestStream(method, unmarshaller, marshaller, rs);
     }
 
     @Override
-    public H fireAndForget(String route, Unmarshaller unmarshaller, Functions.FireAndForget ff) {
-      Objects.requireNonNull(route);
+    public H requestResponse(
+        String method, Unmarshaller unmarshaller, Functions.RequestResponse rr) {
+      return requestResponse(method, unmarshaller, marshaller, rr);
+    }
+
+    @Override
+    public H requestChannel(
+        String method, Unmarshaller unmarshaller, Functions.HandleRequestHandle rc) {
+      return requestChannel(method, unmarshaller, marshaller, rc);
+    }
+
+    @Override
+    public H requestStream(String method, Unmarshaller unmarshaller, Functions.RequestStream rs) {
+      return requestStream(method, unmarshaller, marshaller, rs);
+    }
+
+    @Override
+    public H fireAndForget(String method, Unmarshaller unmarshaller, Functions.FireAndForget ff) {
+      Objects.requireNonNull(method);
       Objects.requireNonNull(ff);
       Objects.requireNonNull(unmarshaller);
-      this.ff.put(route, new FFContext(ff, unmarshaller));
+
+      final String route = service + "." + method;
+      if (tracer == null && meterRegistry == null) {
+        this.fireAndForgetRegistry.put(
+            route, new IPCFireAndForgetFunction(route, unmarshaller, marshaller, ff));
+      } else if (tracer != null && meterRegistry != null) {
+        this.fireAndForgetRegistry.put(
+            route,
+            new IPCTracingAndMetricsAwareFireAndForgetFunction(
+                route, unmarshaller, marshaller, ff, tracer, meterRegistry));
+      } else if (tracer != null) {
+        this.fireAndForgetRegistry.put(
+            route,
+            new IPCTracingAwareFireAndForgetFunction(route, unmarshaller, marshaller, ff, tracer));
+      } else {
+        this.fireAndForgetRegistry.put(
+            route,
+            new IPCMetricsAwareFireAndForgetFunction(
+                route, unmarshaller, marshaller, ff, meterRegistry));
+      }
+
       return this;
     }
 
     @Override
     public H requestResponse(
-        String route,
+        String method,
         Unmarshaller unmarshaller,
         Marshaller marshaller,
         Functions.RequestResponse rr) {
-      Objects.requireNonNull(route);
+      Objects.requireNonNull(method);
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
       Objects.requireNonNull(rr);
-      this.rr.put(route, new RRContext(rr, marshaller, unmarshaller));
+
+      final String route = service + "." + method;
+      if (tracer == null && meterRegistry == null) {
+        this.requestResponseRegistry.put(
+            route, new IPCRequestResponseFunction(route, unmarshaller, marshaller, rr));
+      } else if (tracer != null && meterRegistry != null) {
+        this.requestResponseRegistry.put(
+            route,
+            new IPCTracingAndMetricsAwareRequestResponseFunction(
+                route, unmarshaller, marshaller, rr, tracer, meterRegistry));
+      } else if (tracer != null) {
+        this.requestResponseRegistry.put(
+            route,
+            new IPCTracingAwareRequestResponseFunction(
+                route, unmarshaller, marshaller, rr, tracer));
+      } else {
+        this.requestResponseRegistry.put(
+            route,
+            new IPCMetricsAwareRequestResponseFunction(
+                route, unmarshaller, marshaller, rr, meterRegistry));
+      }
+
       return this;
     }
 
     @Override
     public H requestChannel(
-        String route,
+        String method,
         Unmarshaller unmarshaller,
         Marshaller marshaller,
         Functions.HandleRequestHandle rc) {
-      Objects.requireNonNull(route);
+      Objects.requireNonNull(method);
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
       Objects.requireNonNull(rc);
-      this.rc.put(route, new RCContext(rc, marshaller, unmarshaller));
+
+      final String route = service + "." + method;
+      if (tracer == null && meterRegistry == null) {
+        this.requestChannelRegistry.put(
+            route, new IPCRequestChannelFunction(route, unmarshaller, marshaller, rc));
+      } else if (tracer != null && meterRegistry != null) {
+        this.requestChannelRegistry.put(
+            route,
+            new IPCTracingAndMetricsAwareRequestChannelFunction(
+                route, unmarshaller, marshaller, rc, tracer, meterRegistry));
+      } else if (tracer != null) {
+        this.requestChannelRegistry.put(
+            route,
+            new IPCTracingAwareRequestChannelFunction(route, unmarshaller, marshaller, rc, tracer));
+      } else {
+        this.requestChannelRegistry.put(
+            route,
+            new IPCMetricsAwareRequestChannelFunction(
+                route, unmarshaller, marshaller, rc, meterRegistry));
+      }
       return this;
     }
 
     @Override
     public H requestStream(
-        String route,
+        String method,
         Unmarshaller unmarshaller,
         Marshaller marshaller,
         Functions.RequestStream rs) {
-      Objects.requireNonNull(route);
+      Objects.requireNonNull(method);
       Objects.requireNonNull(marshaller);
       Objects.requireNonNull(unmarshaller);
       Objects.requireNonNull(rs);
-      this.rs.put(route, new RSContext(rs, marshaller, unmarshaller));
+
+      final String route = service + "." + method;
+      if (tracer == null && meterRegistry == null) {
+        this.requestStreamRegistry.put(
+            route, new IPCRequestStreamFunction(route, unmarshaller, marshaller, rs));
+      } else if (tracer != null && meterRegistry != null) {
+        this.requestStreamRegistry.put(
+            route,
+            new IPCTracingAndMetricsAwareRequestStreamFunction(
+                route, unmarshaller, marshaller, rs, tracer, meterRegistry));
+      } else if (tracer != null) {
+        this.requestStreamRegistry.put(
+            route,
+            new IPCTracingAwareRequestStreamFunction(route, unmarshaller, marshaller, rs, tracer));
+      } else {
+        this.requestStreamRegistry.put(
+            route,
+            new IPCMetricsAwareRequestStreamFunction(
+                route, unmarshaller, marshaller, rs, meterRegistry));
+      }
       return this;
     }
 
     @Override
-    public IPCRSocket rsocket() {
-      return new IPCServerRSocket(service, rr, rc, rs, ff, meterRegistry, tracer);
+    public IPCRSocket toIPCRSocket() {
+      return new IPCServerRSocket(
+          service,
+          tracer,
+          new HashMap<>(this.fireAndForgetRegistry),
+          new HashMap<>(this.requestResponseRegistry),
+          new HashMap<>(this.requestStreamRegistry),
+          new HashMap<>(this.requestChannelRegistry));
+    }
+
+    @Override
+    public SelfRegistrable toSelfRegistrable() {
+      return (Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry,
+          Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry,
+          Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry,
+          Map<String, IPCChannelFunction> requestChannelRegistry) -> {
+        fireAndForgetRegistry.putAll(this.fireAndForgetRegistry);
+        requestResponseRegistry.putAll(this.requestResponseRegistry);
+        requestStreamRegistry.putAll(this.requestStreamRegistry);
+        requestChannelRegistry.putAll(this.requestChannelRegistry);
+      };
     }
   }
 

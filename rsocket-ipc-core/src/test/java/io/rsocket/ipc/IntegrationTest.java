@@ -15,11 +15,13 @@
  */
 package io.rsocket.ipc;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
+import io.rsocket.ipc.decoders.CompositeMetadataDecoder;
+import io.rsocket.ipc.encoders.BackwardCompatibleMetadataEncoder;
 import io.rsocket.ipc.marshallers.Primitives;
 import io.rsocket.ipc.marshallers.Strings;
-import io.rsocket.rpc.rsocket.RequestHandlingRSocket;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,7 +34,8 @@ import reactor.test.StepVerifier;
 public class IntegrationTest {
   @Test
   public void test() {
-    RequestHandlingRSocket requestHandler = new RequestHandlingRSocket();
+    RequestHandlingRSocket requestHandler =
+        new RequestHandlingRSocket(new CompositeMetadataDecoder());
 
     RSocketFactory.receive()
         .acceptor((setup, sendingSocket) -> Mono.just(requestHandler))
@@ -78,13 +81,14 @@ public class IntegrationTest {
                   return Mono.empty();
                 })
             .requestChannel("helloChannel", (s, publisher, byteBuf) -> Flux.just("Hello -> " + s))
-            .rsocket();
+            .toIPCRSocket();
 
-    requestHandler.withService(service);
+    requestHandler.withEndpoint(service);
 
     Client<CharSequence, String> helloService =
         Client.service("HelloService")
             .rsocket(rsocket)
+            .customMetadataEncoder(new BackwardCompatibleMetadataEncoder(ByteBufAllocator.DEFAULT))
             .noMeterRegistry()
             .noTracer()
             .marshall(Strings.marshaller())

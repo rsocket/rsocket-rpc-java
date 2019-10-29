@@ -8,6 +8,7 @@ plugins {
 description = 'RSocket RPC Library'
 
 dependencies {
+    compile project(':rsocket-ipc-core')
     implementation 'com.google.protobuf:protobuf-java'
     implementation 'org.slf4j:slf4j-api'
 

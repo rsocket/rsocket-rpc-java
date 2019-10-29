@@ -27,6 +27,7 @@ import reactor.core.Fuseable;
  *
  * @author Marcin Grzejszczak
  */
+@Deprecated
 interface SpanSubscription<T>
     extends Subscription, CoreSubscriber<T>, Fuseable.QueueSubscription<T> {
 

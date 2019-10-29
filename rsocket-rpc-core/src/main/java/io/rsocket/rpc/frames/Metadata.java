@@ -7,6 +7,7 @@ import io.netty.buffer.Unpooled;
 import io.rsocket.util.NumberUtils;
 import java.nio.charset.StandardCharsets;
 
+@Deprecated
 public class Metadata {
   // Version
   public static final short VERSION = 1;

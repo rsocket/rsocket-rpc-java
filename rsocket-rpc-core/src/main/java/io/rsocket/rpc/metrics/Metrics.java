@@ -6,6 +6,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.Fuseable;
 import reactor.core.publisher.Operators;
 
+@Deprecated
 public class Metrics {
   Metrics() {}
 

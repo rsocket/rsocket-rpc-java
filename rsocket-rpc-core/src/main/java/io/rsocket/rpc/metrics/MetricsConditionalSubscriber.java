@@ -9,6 +9,7 @@ import reactor.core.Fuseable.ConditionalSubscriber;
 import reactor.core.publisher.Operators;
 import reactor.util.context.Context;
 
+@Deprecated
 public class MetricsConditionalSubscriber<T> extends AtomicBoolean
     implements Subscription, ConditionalSubscriber<T> {
   private final ConditionalSubscriber<? super T> actual;
