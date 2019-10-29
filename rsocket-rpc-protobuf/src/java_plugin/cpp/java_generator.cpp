@@ -871,9 +871,6 @@ static void PrintClient(const ServiceDescriptor* service,
         *vars,
         "@$Override$\n"
         "public $Publisher$<$Payload$> get() {\n");
-      p->Print(
-        *vars,
-        "private boolean first = true;\n\n");
       p->Indent();
       p->Print(
         *vars,
@@ -908,6 +905,12 @@ static void PrintClient(const ServiceDescriptor* service,
           "return $ByteBufPayload$.create(data);\n");
       p->Outdent();
       p->Print("}\n");
+      p->Outdent();
+      p->Print("}\n");
+      p->Outdent();
+      p->Print("}\n");
+      p->Outdent();
+      p->Print(");\n");
       p->Outdent();
       p->Print("}\n");
       p->Outdent();
