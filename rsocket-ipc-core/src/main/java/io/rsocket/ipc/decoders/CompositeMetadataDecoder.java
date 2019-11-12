@@ -3,6 +3,7 @@ package io.rsocket.ipc.decoders;
 import static io.rsocket.metadata.CompositeMetadataFlyweight.hasEntry;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
@@ -34,7 +35,7 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
   public <T> T decode(Payload payload, Handler<T> transformer) throws Exception {
     ByteBuf metadata = payload.sliceMetadata();
 
-    ByteBuf meta = null;
+    ByteBuf meta;
     String route = null;
     SpanContext context = null;
 
@@ -70,12 +71,14 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
       try {
         String service = Metadata.getService(metadata);
         String method = Metadata.getMethod(metadata);
+        meta = Metadata.getMetadata(metadata);
 
         route = service + "." + method;
         context = Tracing.deserializeTracingMetadata(tracer, metadata);
       } catch (Throwable t) {
         // Here we probably got something from Spring-Messaging :D
         route = metadata.toString(Charset.defaultCharset());
+        meta = Unpooled.EMPTY_BUFFER;
       }
     }
 
