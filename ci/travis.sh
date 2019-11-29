@@ -20,7 +20,7 @@ elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" != "" ] && [ "$bin
 
     echo -e "Building Tag $TRAVIS_REPO_SLUG/$TRAVIS_TAG"
     ./gradlew \
-        -Pversion="$TRAVIS_TAG" -Pstage="$TRAVIS_BUILD_STAGE_NAME" \
+        -Pversion="$TRAVIS_TAG" -Pstage="$TRAVIS_BUILD_STAGE_NAME" -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
