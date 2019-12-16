@@ -1,13 +1,13 @@
 plugins {
-    id 'com.gradle.build-scan' version '2.1'
     id 'com.google.osdetector' version '1.4.0'
     id 'com.github.sherter.google-java-format' version '0.8' apply false
-    id 'com.github.johnrengelman.shadow' version '4.0.2' apply false
-    id 'com.jfrog.artifactory' version '4.7.3' apply false
+    id 'com.github.johnrengelman.shadow' version '5.2.0' apply false
+    id 'com.jfrog.artifactory' version '4.11.0' apply false
     id 'com.jfrog.bintray' version '1.8.4' apply false
-    id 'me.champeau.gradle.jmh' version '0.4.8' apply false
+    id 'me.champeau.gradle.jmh' version '0.5.0' apply false
     id 'io.morethan.jmhreport' version '0.9.0' apply false
     id 'com.google.protobuf' version '0.8.10' apply false
+    id 'io.spring.dependency-management' version '1.0.8.RELEASE' apply false
 }
 
 apply from: 'artifactory.gradle'
@@ -25,35 +25,27 @@ subprojects {
     apply plugin: 'java-library'
     apply plugin: 'com.github.sherter.google-java-format'
 
-    apply plugin: 'maven'
     apply plugin: 'maven-publish'
 
     apply plugin: 'com.jfrog.artifactory'
     apply plugin: 'com.jfrog.bintray'
 
+    apply from: "${project.rootDir}/dependencies-managment.gradle"
+
     sourceCompatibility = 1.8
     targetCompatibility = 1.8
 
-    ext['reactor-bom.version'] = 'Dysprosium-RELEASE'
-    ext['rsocket.version'] = '1.0.0-RC5'
-    ext['graphql.version'] = '11.0'
-    ext['protobuf.version'] = '3.6.1'
-    ext['log4j.version'] = '2.12.1'
-    ext['slf4j.version'] = '1.7.29'
-    ext['junit.version'] = '5.4.0'
-    ext['mockito.version'] = '2.23.0'
-    ext['hamcrest.version'] = '1.3'
-    ext['jmh.version'] = '1.21'
-    ext['micrometer.version'] = '1.0.6'
-    ext['assertj.version'] = '3.11.1'
-    ext['opentracing.version'] = '0.31.0'
-    ext['opentracing.brave.version'] = '0.33.10'
-    ext['zipkin.sender.version'] = '2.8.0'
-    ext['hdrhistogram.version'] = '2.1.10'
+    ext {
+        if (project.hasProperty('versionSuffix')) {
+            project.version += project.getProperty('versionSuffix')
+        }
+    }
 
     repositories {
+        mavenLocal()
+        maven { url 'https://oss.jfrog.org/oss-snapshot-local' }
         mavenCentral()
-        if (version.endsWith('BUILD-SNAPSHOT') || project.hasProperty('platformVersion')) {
+        if (version.endsWith('SNAPSHOT') || project.hasProperty('platformVersion')) {
             maven { url 'http://repo.spring.io/libs-snapshot' }
             maven { url 'https://oss.jfrog.org/oss-snapshot-local' }
         }

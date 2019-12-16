@@ -1,91 +1,99 @@
 configure(subprojects.findAll {it.name != 'rsocket-rpc-protobuf'}) {
-  plugins.withType(JavaPlugin) {
-	compileJava {
-	  sourceCompatibility = 1.8
+	plugins.withType(JavaPlugin) {
+		compileJava {
+			sourceCompatibility = 1.8
 
-	  // TODO: Cleanup warnings so no need to exclude
-	  options.compilerArgs << '-Xlint:all,-overloads,-rawtypes,-unchecked'
-	}
-
-	javadoc {
-	  options.with {
-		links 'https://docs.oracle.com/javase/8/docs/api/'
-		links 'https://projectreactor.io/docs/core/release/api/'
-	  }
-	}
-
-//	test {
-//	  useJUnitPlatform()
-//
-//	  systemProperty "io.netty.leakDetection.level", "ADVANCED"
-//	}
-  }
-
-  plugins.withType(JavaLibraryPlugin) {
-	task sourcesJar(type: Jar) {
-	  classifier 'sources'
-	  from sourceSets.main.allJava
-	}
-
-	task javadocJar(type: Jar, dependsOn: javadoc) {
-	  classifier 'javadoc'
-	  from javadoc.destinationDir
-	}
-  }
-
-  plugins.withType(MavenPublishPlugin) {
-	publishing {
-	  publications {
-		maven(MavenPublication) {
-		  groupId project.group
-
-		  from components.java
-
-		  artifact sourcesJar
-		  artifact javadocJar
-
-		  pom.withXml {
-			asNode().':version' + {
-			  resolveStrategy = DELEGATE_FIRST
-
-			  name project.name
-			  description project.description
-			  url 'http://rsocket.io'
-
-			  licenses {
-				license {
-				  name 'The Apache Software License, Version 2.0'
-				  url 'http://www.apache.org/license/LICENSE-2.0.txt'
-				}
-			  }
-
-			  developers {
-				developer {
-				  id 'robertroeser'
-				  name 'Robert Roeser'
-				  email 'robert@netifi.com'
-				}
-				developer {
-				  id 'rdegnan'
-				  name 'Ryland Degnan'
-				  email 'ryland@netifi.com'
-				}
-				developer {
-				  id 'OlegDokuka'
-				  name 'Oleh Dokuka'
-				  email 'oleh@netifi.com'
-				}
-			  }
-
-			  scm {
-				connection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
-				developerConnection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
-				url 'https://github.com/rsocket/rsocket-rpc-java'
-			  }
-			}
-		  }
+			// TODO: Cleanup warnings so no need to exclude
+			options.compilerArgs << '-Xlint:all,-overloads,-rawtypes,-unchecked'
 		}
-	  }
+
+		javadoc {
+			options.with {
+				links 'https://docs.oracle.com/javase/8/docs/api/'
+				links 'https://projectreactor.io/docs/core/release/api/'
+			}
+		}
+
+		test {
+			useJUnitPlatform()
+
+			systemProperty "io.netty.leakDetection.level", "ADVANCED"
+		}
 	}
-  }
+
+	plugins.withType(JavaLibraryPlugin) {
+		task sourcesJar(type: Jar) {
+			classifier 'sources'
+			from sourceSets.main.allJava
+		}
+
+		task javadocJar(type: Jar, dependsOn: javadoc) {
+			classifier 'javadoc'
+			from javadoc.destinationDir
+		}
+	}
+
+	plugins.withType(MavenPublishPlugin) {
+		publishing {
+			publications {
+				maven(MavenPublication) {
+					from components.java
+
+					artifact sourcesJar
+					artifact javadocJar
+
+					versionMapping {
+						usage('java-api') {
+							fromResolutionOf('runtimeClasspath')
+						}
+						usage('java-runtime') {
+							fromResolutionResult()
+						}
+					}
+
+					pom {
+						name = project.name
+						groupId = project.group
+						afterEvaluate {
+							description = project.description
+						}
+						resolveStrategy = DELEGATE_FIRST
+
+						url = 'http://rsocket.io'
+
+						licenses {
+							license {
+								name = 'The Apache Software License, Version 2.0'
+								url = 'http://www.apache.org/license/LICENSE-2.0.txt'
+							}
+						}
+
+						developers {
+							developer {
+								id = 'robertroeser'
+								name = 'Robert Roeser'
+								email = 'robert@netifi.com'
+							}
+							developer {
+								id = 'rdegnan'
+								name = 'Ryland Degnan'
+								email = 'ryland@netifi.com'
+							}
+							developer {
+								id = 'OlegDokuka'
+								name = 'Oleh Dokuka'
+								email = 'oleh@netifi.com'
+							}
+						}
+
+						scm {
+							connection = 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
+							developerConnection = 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
+							url = 'https://github.com/rsocket/rsocket-rpc-java'
+						}
+					}
+				}
+			}
+		}
+	}
 }
