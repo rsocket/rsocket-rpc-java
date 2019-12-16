@@ -35,7 +35,8 @@ jobs:
   - stage: deploy
     language: cpp
     os: osx
-    osx_image: xcode10.1
+    osx_image: xcode11.2
+    jdk: openjdk8
     compiler: clang
     before_install:
     - curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
