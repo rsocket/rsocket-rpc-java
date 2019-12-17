@@ -2,50 +2,57 @@ sudo: required
 dist: trusty
 jobs:
   include:
+#  - stage: build
+#    language: cpp
+#    os: linux
+#    jdk: oraclejdk8
+#    before_install:
+#    - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
+#    - tar -xzvf protobuf-cpp-3.6.1.tar.gz
+#    - pushd protobuf-3.6.1
+#    - ./configure --disable-shared && make && sudo make install
+#    - popd
+#    script: "./ci/travis.sh"
+#  - stage: build
+#    language: cpp
+#    os: windows
+#    filter_secrets: false
+#    env:
+#    - GRADLE_OPTS="-Dorg.gradle.daemon=false"
+#    before_install:
+#    - rm -r "/c/Program Files (x86)/Microsoft Visual Studio 14.0"
+#    - export PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Tools/MSVC/14.16.27023/bin/HostX86/x64"
+#    - choco install -y adoptopenjdk8 --version 8.232.9
+#    - export PATH=$PATH:"/c/Program Files/AdoptOpenJDK/jdk-8.0.232.09-hotspot/bin"
+#    - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
+#    - tar -xzf protobuf-cpp-3.6.1.tar.gz
+#    - pushd protobuf-3.6.1/cmake
+#    - mkdir build && cd build
+#    - cmake -A x64 -DCMAKE_INSTALL_PREFIX="/c/Program Files/protobuf" -DCMAKE_CXX_FLAGS="-std=c++11 -EHsc" -Dprotobuf_BUILD_TESTS=OFF ..
+#    - cmake --build . --config Release --target install
+#    - popd
+#    script: "./ci/travis.sh"
   - stage: build
-    language: cpp
-    os: linux
-    jdk: oraclejdk8
-    before_install:
-    - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
-    - tar -xzvf protobuf-cpp-3.6.1.tar.gz
-    - pushd protobuf-3.6.1
-    - ./configure --disable-shared && make && sudo make install
-    - popd
-    script: "./ci/travis.sh"
-  - stage: build
-    language: cpp
-    os: windows
-    filter_secrets: false
-    env:
-    - GRADLE_OPTS="-Dorg.gradle.daemon=false"
-    before_install:
-    - rm -r "/c/Program Files (x86)/Microsoft Visual Studio 14.0"
-    - export PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Tools/MSVC/14.16.27023/bin/HostX86/x64"
-    - choco install -y adoptopenjdk8 --version 8.232.9
-    - export PATH=$PATH:"/c/Program Files/AdoptOpenJDK/jdk-8.0.232.09-hotspot/bin"
-    - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
-    - tar -xzf protobuf-cpp-3.6.1.tar.gz
-    - pushd protobuf-3.6.1/cmake
-    - mkdir build && cd build
-    - cmake -A x64 -DCMAKE_INSTALL_PREFIX="/c/Program Files/protobuf" -DCMAKE_CXX_FLAGS="-std=c++11 -EHsc" -Dprotobuf_BUILD_TESTS=OFF ..
-    - cmake --build . --config Release --target install
-    - popd
-    script: "./ci/travis.sh"
-  - stage: deploy
     language: cpp
     os: osx
     osx_image: xcode11.2
-    jdk: openjdk8
     compiler: clang
     before_install:
+    - curl -OLJ https://api.adoptopenjdk.net/v1/openjdk8/releases/x64_mac/latest/binary
+    - tar -xzf OpenJDK8_x64_Mac_jdk*.tar.gz
+    - sudo mv jdk8* /Library/Java/JavaVirtualMachines/
+    - sudo rm -rf /Library/Java/JavaVirtualMachines/openjdk-13*
+    - ls /Library/Java/JavaVirtualMachines/
+    - java --version
     - curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
     - tar -xzf protobuf-cpp-3.6.1.tar.gz
     - pushd protobuf-3.6.1
     - ./autogen.sh
     - ./configure --disable-shared && make && sudo make install
     - popd
-    script: "./ci/travis.sh"
+    script:
+      - jdk_switcher use openjdk8
+      - "./ci/travis.sh"
 before_cache:
 - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
 notifications:
