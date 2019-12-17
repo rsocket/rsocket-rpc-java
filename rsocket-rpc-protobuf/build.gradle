@@ -17,7 +17,7 @@ targetCompatibility = 1.8
 def addEnvArgs = { env, argList ->
   def value = System.getenv(env)
   if (value != null) {
-	value.split(' +').each() { it -> argList.add(it) }
+    value.split(' +').each() { it -> argList.add(it) }
   }
 }
 
@@ -29,98 +29,93 @@ def addEnvArgs = { env, argList ->
 def addLibraryIfNotLinked = { libName, argList ->
   def ldflags = System.env.LDFLAGS
   if (ldflags == null || !ldflags.contains('lib' + libName + '.a')) {
-	argList.add('-l' + libName)
+    argList.add('-l' + libName)
   }
 }
 
 String arch = rootProject.hasProperty('targetArch') ? rootProject.targetArch :
-		osdetector.arch
+        osdetector.arch
 boolean vcDisable = rootProject.hasProperty('vcDisable') ? rootProject.vcDisable : false
 
 model {
   toolChains {
-	// If you have both VC and Gcc installed, VC will be selected, unless you
-	// set 'vcDisable=true'
-	if (!vcDisable) {
-	  println 'using visualCpp'
-	  visualCpp(VisualCpp) {}
-	}
-	gcc(Gcc) {
-	  target("ppcle_64")
-	}
-	clang(Clang) {}
+    // If you have both VC and Gcc installed, VC will be selected, unless you
+    // set 'vcDisable=true'
+    if (!vcDisable) {
+      println 'using visualCpp'
+      visualCpp(VisualCpp) {}
+    }
+    gcc(Gcc) {
+      target("ppcle_64")
+    }
+    clang(Clang) {}
   }
 
   platforms {
-	x86_32 {
-	  architecture "x86"
-	}
-	x86_64 {
-	  architecture "x86_64"
-	}
-	ppcle_64 {
-	  architecture "ppcle_64"
-	}
+    x86_32 {
+      architecture "x86"
+    }
+    x86_64 {
+      architecture "x86_64"
+    }
+    ppcle_64 {
+      architecture "ppcle_64"
+    }
   }
 
   components {
-	java_plugin(NativeExecutableSpec) {
-	  if (arch in ['x86_32', 'x86_64', 'ppcle_64']) {
-		// If arch is not within the defined platforms, we do not specify the
-		// targetPlatform so that Gradle will choose what is appropriate.
-		targetPlatform arch
-	  }
-	  baseName "$pluginPrefix"
-	}
+    java_plugin(NativeExecutableSpec) {
+      if (arch in ['x86_32', 'x86_64', 'ppcle_64']) {
+        // If arch is not within the defined platforms, we do not specify the
+        // targetPlatform so that Gradle will choose what is appropriate.
+        targetPlatform arch
+      }
+      baseName "$pluginPrefix"
+    }
   }
 
   binaries {
-	all {
-	  if (toolChain in Gcc || toolChain in Clang) {
-		cppCompiler.define("RSOCKET_RPC_VERSION", version)
-		cppCompiler.args "--std=c++0x"
-		addEnvArgs("CXXFLAGS", cppCompiler.args)
-		addEnvArgs("CPPFLAGS", cppCompiler.args)
-		if (osdetector.os == "osx") {
-		  cppCompiler.args "-mmacosx-version-min=10.7", "-stdlib=libc++"
-		  addLibraryIfNotLinked('protoc', linker.args)
-		  addLibraryIfNotLinked('protobuf', linker.args)
-		}
-		else if (osdetector.os == "windows") {
-		  linker.args "-static", "-lprotoc", "-lprotobuf", "-static-libgcc",
-				  "-static-libstdc++",
-				  "-s"
-		}
-		else {
-		  // Link protoc, protobuf, libgcc and libstdc++ statically.
-		  // Link other (system) libraries dynamically.
-		  // Clang under OSX doesn't support these options.
-		  linker.args "-Wl,-Bstatic", "-lprotoc", "-lprotobuf", "-static-libgcc",
-				  "-static-libstdc++",
-				  "-Wl,-Bdynamic", "-lpthread", "-s"
-		}
-		addEnvArgs("LDFLAGS", linker.args)
-	  }
-	  else if (toolChain in VisualCpp) {
-		cppCompiler.define("RSOCKET_RPC_VERSION", version)
-		cppCompiler.args "/EHsc", "/MT"
-		if (rootProject.hasProperty('vcProtobufInclude')) {
-		  cppCompiler.args "/I${rootProject.vcProtobufInclude}"
-		}
-		else {
-		  println 'You may need to add a propertry, vcProtobufInclude, pointing to protobuf include'
-		}
+    all {
+      if (toolChain in Gcc || toolChain in Clang) {
+        cppCompiler.define("RSOCKET_RPC_VERSION", version)
+        cppCompiler.args "--std=c++0x"
+        addEnvArgs("CXXFLAGS", cppCompiler.args)
+        addEnvArgs("CPPFLAGS", cppCompiler.args)
+        if (osdetector.os == "osx") {
+          cppCompiler.args "-mmacosx-version-min=10.7", "-stdlib=libc++"
+          addLibraryIfNotLinked('protoc', linker.args)
+          addLibraryIfNotLinked('protobuf', linker.args)
+        } else if (osdetector.os == "windows") {
+          linker.args "-static", "-lprotoc", "-lprotobuf", "-static-libgcc",
+                  "-static-libstdc++",
+                  "-s"
+        } else {
+          // Link protoc, protobuf, libgcc and libstdc++ statically.
+          // Link other (system) libraries dynamically.
+          // Clang under OSX doesn't support these options.
+          linker.args "-Wl,-Bstatic", "-lprotoc", "-lprotobuf", "-static-libgcc",
+                  "-static-libstdc++",
+                  "-Wl,-Bdynamic", "-lpthread", "-s"
+        }
+        addEnvArgs("LDFLAGS", linker.args)
+      } else if (toolChain in VisualCpp) {
+        cppCompiler.define("RSOCKET_RPC_VERSION", version)
+        cppCompiler.args "/EHsc", "/MT"
+        if (rootProject.hasProperty('vcProtobufInclude')) {
+          cppCompiler.args "/I${rootProject.vcProtobufInclude}"
+        } else {
+          println 'You may need to add a propertry, vcProtobufInclude, pointing to protobuf include'
+        }
 
-		if (rootProject.hasProperty('vcProtobufLibs')) {
-		  linker.args "/LIBPATH:${rootProject.vcProtobufLibs}"
-		}
-		else {
-		  println 'You may need to add a propertry, vcProtobufLibs, pointing to protobuf lib'
-		}
+        if (rootProject.hasProperty('vcProtobufLibs')) {
+          linker.args "/LIBPATH:${rootProject.vcProtobufLibs}"
+        } else {
+          println 'You may need to add a propertry, vcProtobufLibs, pointing to protobuf lib'
+        }
 
-		linker.args "libprotobuf.lib", "libprotoc.lib"
-	  }
-	}
+        linker.args "libprotobuf.lib", "libprotoc.lib"
+      }
+    }
   }
 }
 
@@ -128,74 +123,74 @@ task buildArtifacts(type: Copy) {
   println 'generating artifacts'
   dependsOn 'java_pluginExecutable'
   from("$buildDir/exe/java_plugin") {
-	if (osdetector.os != 'windows') {
-	  rename pluginPrefix, '$0.exe'
-	}
+    if (osdetector.os != 'windows') {
+      rename pluginPrefix, '$0.exe'
+    }
   }
   into artifactStagingPath
 }
 
 artifacts {
   archives("$pathToPlugin" as File) {
-	classifier osdetector.os + "-" + osdetector.arch
-	type "exe"
-	extension "exe"
-	builtBy buildArtifacts
+    classifier osdetector.os + "-" + osdetector.arch
+    type "exe"
+    extension "exe"
+    builtBy buildArtifacts
   }
 }
 
 plugins.withType(MavenPublishPlugin) {
   publishing {
-	publications {
-	  maven(MavenPublication) {
-		groupId project.group
+    publications {
+      maven(MavenPublication) {
+        groupId project.group
 
-		artifact(pathToPlugin) {
-		  classifier osdetector.os + "-" + osdetector.arch
-		  builtBy buildArtifacts
-		}
+        artifact(pathToPlugin) {
+          classifier osdetector.os + "-" + osdetector.arch
+          builtBy buildArtifacts
+        }
 
-		pom.withXml {
-		  asNode().':version' + {
-			resolveStrategy = DELEGATE_FIRST
+        pom.withXml {
+          asNode().':version' + {
+            resolveStrategy = DELEGATE_FIRST
 
-			name project.name
-			description project.description
-			url 'http://rsocket.io'
+            name project.name
+            description project.description
+            url 'http://rsocket.io'
 
-			licenses {
-			  license {
-				name 'The Apache Software License, Version 2.0'
-				url 'http://www.apache.org/license/LICENSE-2.0.txt'
-			  }
-			}
+            licenses {
+              license {
+                name 'The Apache Software License, Version 2.0'
+                url 'http://www.apache.org/license/LICENSE-2.0.txt'
+              }
+            }
 
-			developers {
-			  developer {
-				id 'robertroeser'
-				name 'Robert Roeser'
-				email 'robert@netifi.com'
-			  }
-			  developer {
-				id 'rdegnan'
-				name 'Ryland Degnan'
-				email 'ryland@netifi.com'
-			  }
-			  developer {
-				id 'OlegDokuka'
-				name 'Oleh Dokuka'
-				email 'oleh@netifi.com'
-			  }
-			}
+            developers {
+              developer {
+                id 'robertroeser'
+                name 'Robert Roeser'
+                email 'robert@netifi.com'
+              }
+              developer {
+                id 'rdegnan'
+                name 'Ryland Degnan'
+                email 'ryland@netifi.com'
+              }
+              developer {
+                id 'OlegDokuka'
+                name 'Oleh Dokuka'
+                email 'oleh@netifi.com'
+              }
+            }
 
-			scm {
-			  connection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
-			  developerConnection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
-			  url 'https://github.com/rsocket/rsocket-rpc-java'
-			}
-		  }
-		}
-	  }
-	}
+            scm {
+              connection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
+              developerConnection 'scm:git:https://github.com/rsocket/rsocket-rpc-java.git'
+              url 'https://github.com/rsocket/rsocket-rpc-java'
+            }
+          }
+        }
+      }
+    }
   }
 }
