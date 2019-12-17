@@ -12,7 +12,7 @@ dependencyManagement {
         dependency "javax.inject:javax.inject:1"
         dependency "javax.annotation:javax.annotation-api:1.2"
 
-        dependency "com.google.protobuf:protoc:$protobufVersion"
+        dependency "com.google.protobuf:protoc:3.6.1"
 
         dependencySet(group: 'org.apache.logging.log4j', version: log4jVersion) {
             entry "log4j-api"
