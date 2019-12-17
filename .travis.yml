@@ -58,6 +58,9 @@ jobs:
       - "./ci/travis.sh"
 before_cache:
 - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
+
+after_failure:
+  - cat /Users/travis/build/rsocket/rsocket-rpc-java/rsocket-rpc-protobuf/build/tmp/linkJava_pluginExecutable/output.txt
 notifications:
   email: false
 cache:
