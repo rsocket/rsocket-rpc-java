@@ -39,6 +39,15 @@ jobs:
     jdk: openjdk8
     compiler: clang
     before_install:
+    - curl -OLJ https://api.adoptopenjdk.net/v1/openjdk8/releases/x64_mac/latest/binary
+    - tar -xzf OpenJDK8_x64_Mac_jdk*.tar.gz
+    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents
+    - sudo mv jdk8* /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
+    - sudo rm -rf /Library/Java/JavaVirtualMachines/openjdk-13*
+    - ls /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+    - export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
+    - java -version
     - curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
     - tar -xzf protobuf-cpp-3.6.1.tar.gz
     - pushd protobuf-3.6.1
