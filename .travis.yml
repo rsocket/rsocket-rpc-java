@@ -35,8 +35,8 @@ jobs:
   - stage: build
     language: cpp
     os: osx
-    osx_image: xcode9.4
-    compiler: clang
+    osx_image: xcode10.1
+    compiler: gcc
     before_install:
     - curl -OLJ https://api.adoptopenjdk.net/v1/openjdk8/releases/x64_mac/latest/binary
     - tar -xzf OpenJDK8_x64_Mac_jdk*.tar.gz
@@ -54,7 +54,6 @@ jobs:
     - ./configure --disable-shared && make && sudo make install
     - popd
     script:
-      - jdk_switcher use openjdk8
       - "./ci/travis.sh"
 before_cache:
 - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
