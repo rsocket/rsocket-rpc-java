@@ -48,9 +48,9 @@ jobs:
     - ls /Library/Java/JavaVirtualMachines/openjdk-8.jdk
     - export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
     - brew install autoconf
-    - brew install automake
-    - brew install libtool
-#    - brew install cmake
+    - brew reinstall automake
+    - brew reinstall libtool
+    - brew update cmake
     - java -version
     - curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
     - tar -xzf protobuf-cpp-3.6.1.tar.gz
