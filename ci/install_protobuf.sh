@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-FILE=./protobuf-3.6.1
-if [ ! -d "$FILE" ]; then
+DIR=./protobuf-3.6.1
+
+if [ ! -d "$DIR" ] || [ ! "$(ls -A $DIR)" ]; then
   echo 'install protobuf from scratch'
   curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
   tar -xzf protobuf-cpp-3.6.1.tar.gz
