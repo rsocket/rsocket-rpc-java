@@ -52,8 +52,10 @@ jobs:
 #    - brew install autoconf
 #    - brew reinstall automake
 #    - brew reinstall libtool
-    - brew install protobuf
+#    - brew install protobuf
+    - ls /usr/local/Cellar/protobuf/3*
     - brew install protobuf@3.6
+    - mv -f /usr/local/Cellar/protobuf@3.6/3.6.1.3_1/ /usr/local/Cellar/protobuf/3*/
 #    - eval "${MATRIX_EVAL}"
     - java -version
     - curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
