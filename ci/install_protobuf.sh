@@ -7,9 +7,7 @@ if [ ! -d "$FILE" ]; then
   tar -xzf protobuf-cpp-3.6.1.tar.gz
   pushd protobuf-3.6.1 || exit
   ./autogen.sh
-  ./configure --disable-shared
-  make
-  sudo make install
+  ./configure --disable-shared && make && sudo make install
   popd || exit
 else
   echo 'install protobuf from cache'
