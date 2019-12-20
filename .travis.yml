@@ -48,6 +48,8 @@ jobs:
     - export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
     - brew uninstall --ignore-dependencies protobuf
     - pushd $HOME
+    - ls
+    - ls ./protobuf-3.6.1
     - bash ./build/rsocket/rsocket-rpc-java/ci/install_protobuf.sh
     - popd
     - java -version
