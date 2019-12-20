@@ -18,7 +18,7 @@ jobs:
   - stage: build
     language: cpp
     os: osx
-    osx_image: xcode10.1
+    osx_image: xcode11.2
     compiler: clang
     before_install:
     - sudo rm -rf /Library/Java/JavaVirtualMachines/*
