@@ -55,6 +55,7 @@ jobs:
 #    - brew install protobuf
     - ls /usr/local/Cellar/protobuf/3*
     - brew install protobuf@3.6
+    - rm -rf /usr/local/Cellar/protobuf/3*/*
     - mv -f /usr/local/Cellar/protobuf@3.6/3.6.1.3_1/* /usr/local/Cellar/protobuf/3*/
 #    - eval "${MATRIX_EVAL}"
     - protoc --version
