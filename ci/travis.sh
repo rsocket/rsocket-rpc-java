@@ -17,6 +17,7 @@ elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bin
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
+        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
         build artifactoryPublish --stacktrace
 
 elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bintrayUser" != "" ] ; then
@@ -27,6 +28,7 @@ elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bin
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
+        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
         build artifactoryPublish --stacktrace
 
 elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" != "" ] && [ "$bintrayUser" != "" ] ; then
@@ -37,6 +39,7 @@ elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" != "" ] && [ "$bin
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
+        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
         build bintrayUpload --stacktrace
 
 else
