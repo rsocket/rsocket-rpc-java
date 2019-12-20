@@ -17,25 +17,6 @@ jobs:
     script: "./ci/travis.sh"
   - stage: build
     language: cpp
-    os: windows
-    filter_secrets: false
-    env:
-    - GRADLE_OPTS="-Dorg.gradle.daemon=false"
-    before_install:
-    - rm -r "/c/Program Files (x86)/Microsoft Visual Studio 14.0"
-    - export PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Tools/MSVC/14.16.27023/bin/HostX86/x64"
-    - choco install -y adoptopenjdk8 --version 8.232.9
-    - export PATH=$PATH:"/c/Program Files/AdoptOpenJDK/jdk-8.0.232.09-hotspot/bin"
-    - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
-    - tar -xzf protobuf-cpp-3.6.1.tar.gz
-    - pushd protobuf-3.6.1/cmake
-    - mkdir build && cd build
-    - cmake -A x64 -DCMAKE_INSTALL_PREFIX="/c/Program Files/protobuf" -DCMAKE_CXX_FLAGS="-std=c++11 -EHsc" -Dprotobuf_BUILD_TESTS=OFF ..
-    - cmake --build . --config Release --target install
-    - popd
-    script: "./ci/travis.sh"
-  - stage: deploy
-    language: cpp
     os: osx
     osx_image: xcode10.1
     compiler: clang
@@ -56,6 +37,25 @@ jobs:
     - popd
     - java -version
     - protoc --version
+    script: "./ci/travis.sh"
+  - stage: deploy
+    language: cpp
+    os: windows
+    filter_secrets: false
+    env:
+    - GRADLE_OPTS="-Dorg.gradle.daemon=false"
+    before_install:
+    - rm -r "/c/Program Files (x86)/Microsoft Visual Studio 14.0"
+    - export PATH=$PATH:"/c/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Tools/MSVC/14.16.27023/bin/HostX86/x64"
+    - choco install -y adoptopenjdk8 --version 8.232.9
+    - export PATH=$PATH:"/c/Program Files/AdoptOpenJDK/jdk-8.0.232.09-hotspot/bin"
+    - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
+    - tar -xzf protobuf-cpp-3.6.1.tar.gz
+    - pushd protobuf-3.6.1/cmake
+    - mkdir build && cd build
+    - cmake -A x64 -DCMAKE_INSTALL_PREFIX="/c/Program Files/protobuf" -DCMAKE_CXX_FLAGS="-std=c++11 -EHsc" -Dprotobuf_BUILD_TESTS=OFF ..
+    - cmake --build . --config Release --target install
+    - popd
     script: "./ci/travis.sh"
 before_cache:
 - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
