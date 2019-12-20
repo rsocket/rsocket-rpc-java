@@ -78,11 +78,11 @@ model {
     all {
       if (toolChain in Gcc || toolChain in Clang) {
         cppCompiler.define("RSOCKET_RPC_VERSION", version)
-        cppCompiler.args "--std=c++0x"
+        cppCompiler.args "--std=c++11"
         addEnvArgs("CXXFLAGS", cppCompiler.args)
         addEnvArgs("CPPFLAGS", cppCompiler.args)
         if (osdetector.os == "osx") {
-          cppCompiler.args "-mmacosx-version-min=10.7", "-stdlib=libc++"
+          cppCompiler.args "-mmacosx-version-min=10.7", "-stdlib=libstdc++"
           addLibraryIfNotLinked('protoc', linker.args)
           addLibraryIfNotLinked('protobuf', linker.args)
         } else if (osdetector.os == "windows") {
