@@ -4,16 +4,31 @@ if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
 
     echo -e "Building PR #$TRAVIS_PULL_REQUEST [$TRAVIS_PULL_REQUEST_SLUG/$TRAVIS_PULL_REQUEST_BRANCH => $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH]"
     ./gradlew \
-        -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
+        -PversionSuffix="-SNAPSHOT" \
+        -PvcProtobufLibs="/c/Program Files/protobuf/lib" \
+        -PvcProtobufInclude="/c/Program Files/protobuf/include" \
         build
 
-elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bintrayUser" != "" ] ; then
+elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bintrayUser" != "" ] && [ "$TRAVIS_BRANCH" == "master" ] ; then
 
-    echo -e "Building Snapshot $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH"
+    echo -e "Building Master Snapshot $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH/$TRAVIS_BUILD_NUMBER"
     ./gradlew \
+        -PversionSuffix="-SNAPSHOT" \
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
+        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
+        build artifactoryPublish --stacktrace
+
+elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bintrayUser" != "" ] ; then
+
+    echo -e "Building Branch Snapshot $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH/$TRAVIS_BUILD_NUMBER"
+    ./gradlew \
+        -PversionSuffix="-${TRAVIS_BRANCH//\//-}-SNAPSHOT" \
+        -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
+        -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
+        -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
+        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
         build artifactoryPublish --stacktrace
 
 elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" != "" ] && [ "$bintrayUser" != "" ] ; then
@@ -24,12 +39,14 @@ elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" != "" ] && [ "$bin
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
+        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
         build bintrayUpload --stacktrace
 
 else
 
     echo -e "Building $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH"
     ./gradlew \
+        -PversionSuffix="-SNAPSHOT" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
         build
 

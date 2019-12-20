@@ -1,0 +1,46 @@
+apply plugin: 'io.spring.dependency-management'
+
+dependencyManagement {
+    imports {
+        mavenBom "io.projectreactor:reactor-bom:$reactorBomVersion"
+        mavenBom "io.rsocket:rsocket-bom:$rsocketVersion"
+        mavenBom "org.junit:junit-bom:$junitVersion"
+        mavenBom "com.google.protobuf:protobuf-bom:$protobufVersion"
+    }
+
+    dependencies {
+        dependency "javax.inject:javax.inject:1"
+        dependency "javax.annotation:javax.annotation-api:1.2"
+
+        dependency "com.google.protobuf:protoc:3.6.1"
+
+        dependencySet(group: 'org.apache.logging.log4j', version: log4jVersion) {
+            entry "log4j-api"
+            entry "log4j-core"
+            entry "log4j-slf4j-impl"
+        }
+
+        dependency "org.slf4j:slf4j-api:$slf4jVersion"
+        dependency "org.slf4j:slf4j-simple:$slf4jVersion"
+
+        dependency "io.micrometer:micrometer-core:$micrometerVersion"
+        dependency "io.opentracing:opentracing-api:$opentracingVersion"
+        dependency "io.opentracing.brave:brave-opentracing:$opentracingBraveVersion"
+        dependency "io.zipkin.reporter2:zipkin-sender-okhttp3:$zipkinSenderVersion"
+
+        // TODO: Remove after JUnit5 migration
+        // TEST DEPENDENCIES
+
+        dependency 'junit:junit:4.12'
+
+        dependency "org.mockito:mockito-core:$mockitoVersion"
+        dependency "org.hamcrest:hamcrest-library:$hamcrestVersion"
+        dependency "org.assertj:assertj-core:$assertjVersion"
+        dependency "org.hdrhistogram:HdrHistogram:$hdrhistogramVersion"
+
+        dependencySet(group: 'org.openjdk.jmh', version: jmhVersion) {
+            entry 'jmh-core'
+            entry 'jmh-generator-annprocess'
+        }
+    }
+}

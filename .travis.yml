@@ -7,13 +7,38 @@ jobs:
     os: linux
     jdk: oraclejdk8
     before_install:
-    - wget https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
-    - tar -xzvf protobuf-cpp-3.6.1.tar.gz
-    - pushd protobuf-3.6.1
-    - ./configure --disable-shared && make && sudo make install
+    - pushd $HOME
+    - ls
+    - ls ./protobuf-3.6.1
+    - bash ./build/rsocket/rsocket-rpc-java/ci/install_protobuf.sh
     - popd
+    - java -version
+    - protoc --version
     script: "./ci/travis.sh"
   - stage: build
+    language: cpp
+    os: osx
+    osx_image: xcode11.2
+    compiler: clang
+    before_install:
+    - sudo rm -rf /Library/Java/JavaVirtualMachines/*
+    - curl -OLJ https://api.adoptopenjdk.net/v1/openjdk8/releases/x64_mac/latest/binary
+    - tar -xzf OpenJDK8_x64_Mac_jdk*.tar.gz
+    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents
+    - sudo mv jdk8* /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
+    - ls /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+    - export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
+    - brew uninstall --ignore-dependencies protobuf
+    - pushd $HOME
+    - ls
+    - ls ./protobuf-3.6.1
+    - bash ./build/rsocket/rsocket-rpc-java/ci/install_protobuf.sh
+    - popd
+    - java -version
+    - protoc --version
+    script: "./ci/travis.sh"
+  - stage: deploy
     language: cpp
     os: windows
     filter_secrets: false
@@ -32,35 +57,13 @@ jobs:
     - cmake --build . --config Release --target install
     - popd
     script: "./ci/travis.sh"
-  - stage: deploy
-    language: cpp
-    os: osx
-    osx_image: xcode11.2
-    jdk: openjdk8
-    compiler: clang
-    before_install:
-    - curl -OLJ https://api.adoptopenjdk.net/v1/openjdk8/releases/x64_mac/latest/binary
-    - tar -xzf OpenJDK8_x64_Mac_jdk*.tar.gz
-    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk
-    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents
-    - sudo mv jdk8* /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
-    - sudo rm -rf /Library/Java/JavaVirtualMachines/openjdk-13*
-    - ls /Library/Java/JavaVirtualMachines/openjdk-8.jdk
-    - export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
-    - java -version
-    - curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
-    - tar -xzf protobuf-cpp-3.6.1.tar.gz
-    - pushd protobuf-3.6.1
-    - ./autogen.sh
-    - ./configure --disable-shared && make && sudo make install
-    - popd
-    script: "./ci/travis.sh"
 before_cache:
 - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
 notifications:
   email: false
 cache:
   directories:
+  - "$HOME/protobuf-3.6.1/"
   - "$HOME/.gradle/caches/"
   - "$HOME/.gradle/wrapper/"
   - "$HOME/.m2"

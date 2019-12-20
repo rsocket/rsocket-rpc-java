@@ -1,3 +1,7 @@
+plugins {
+    id 'com.gradle.enterprise' version '3.1'
+}
+
 rootProject.name = 'rsocket-rpc-java'
 
 include 'rsocket-ipc-core'
@@ -8,3 +12,12 @@ include 'rsocket-rpc-core'
 include 'rsocket-rpc-metrics-idl'
 include 'rsocket-rpc-protobuf'
 include 'rsocket-rpc-protobuf-idl'
+
+
+
+gradleEnterprise {
+    buildScan {
+        termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+        termsOfServiceAgree = 'yes'
+    }
+}
