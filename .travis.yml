@@ -53,7 +53,7 @@ jobs:
 #    - brew reinstall automake
 #    - brew reinstall libtool
 #    - brew install protobuf
-    - brew remove protobuf
+    - brew uninstall --ignore-dependencies protobuf
     - brew install protobuf@3.6
     - echo 'export PATH="/usr/local/opt/protobuf@3.6/bin:$PATH"' >> ~/.bash_profile
     - export PATH="/usr/local/opt/protobuf@3.6/bin:$PATH"
