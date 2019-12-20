@@ -41,14 +41,14 @@ jobs:
       - MATRIX_EVAL="brew install gcc5 && CC=gcc-5 && CXX=g++-5"
 #    compiler: gcc
     before_install:
-#    - sudo rm -rf /Library/Java/JavaVirtualMachines/*
-#    - curl -OLJ https://api.adoptopenjdk.net/v1/openjdk8/releases/x64_mac/latest/binary
-#    - tar -xzf OpenJDK8_x64_Mac_jdk*.tar.gz
-#    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk
-#    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents
-#    - sudo mv jdk8* /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
-#    - ls /Library/Java/JavaVirtualMachines/openjdk-8.jdk
-#    - export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
+    - sudo rm -rf /Library/Java/JavaVirtualMachines/*
+    - curl -OLJ https://api.adoptopenjdk.net/v1/openjdk8/releases/x64_mac/latest/binary
+    - tar -xzf OpenJDK8_x64_Mac_jdk*.tar.gz
+    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents
+    - sudo mv jdk8* /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
+    - ls /Library/Java/JavaVirtualMachines/openjdk-8.jdk
+    - export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
 #    - brew install autoconf
 #    - brew reinstall automake
 #    - brew reinstall libtool
