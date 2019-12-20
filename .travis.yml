@@ -50,7 +50,11 @@ jobs:
     - curl -O -L https://github.com/google/protobuf/releases/download/v3.6.1/protobuf-cpp-3.6.1.tar.gz
     - tar -xzf protobuf-cpp-3.6.1.tar.gz
     - ls $HOME
+    - ls ./
     - pwd
+    - pushd $HOME
+    - pwd
+    - popd
     - pushd protobuf-3.6.1
     - ./autogen.sh
     - ./configure --disable-shared && make && sudo make install
@@ -67,6 +71,7 @@ cache:
   - "$HOME/.gradle/caches/"
   - "$HOME/.gradle/wrapper/"
   - "$HOME/.m2"
+  -
 env:
   global:
   - secure: "ErthuwJHqk8MPlGQcwaSV1mk6DI1z6YHg+XnNUE9yx/EXUqVMyazu5u9VqlZhMMQQm6II8Y8oBF1uK4JdNVKa44xCt8OM3d/HbG5WhYyigNuKaOgK19FGfA7hciY4gzcMsix/lOryqu8JlYqABAIJFwZIJFtnEdylxUO46/PLP01TOHVOrnaUXpTNm6esaXfmgv1ToQCtwALSgo/xy2KYFA6vpzcTYnMii9eMaOZdy3162t8M6equ2WHhqiKvxCX1+M8D76/WoRF1v45dekAV3UKSBf5b3UcK1W1V/NxtwMufD7tXLGxDsBo2JWQOLjx+AyiKGwhVkZBbvfECDKKjq3x5NMjvjqleprYNEKQYibCNvhXVpZPZgKt899RHOXMjt+fr+iq1aHpHU98iFWXyp+MgYbe9Fez/xcWDH9rri+LKsCgZd1PtpDjTjUsZWesAsXYQatTGOZ0w0cOkURbVhUKltnf/AzuhOlj3XqJmO30vKiBhtwzyfvrURc+0GqWlRoU0C1qskmtmI10PJRR1Qv3eMKvvi6XIQfit9J01V/0sJ+WoG6980hJy0N421qr1+LNg3WmDGtMp6UyoAvjUbDFaW3xzGdbsNmLzWqfaFY1kM7ry6WaVVbGEYz0uHKEvMnqLrM3t18qO4wQsaskGCYEaYSmFp4oMT4pDRgCzvU="
