@@ -53,12 +53,16 @@ jobs:
 #    - brew reinstall automake
 #    - brew reinstall libtool
 #    - brew install protobuf
-    - ls /usr/local/Cellar/protobuf
-    - ls /usr/local/Cellar/protobuf/3*
+    - brew remove protobuf
     - brew install protobuf@3.6
-    - rm -rf /usr/local/Cellar/protobuf/3*/*
-    - mv -f /usr/local/Cellar/protobuf@3.6/3.6.1.3_1/* /usr/local/Cellar/protobuf/3*/
-    - ls /usr/local/Cellar/protobuf/3*
+    - echo 'export PATH="/usr/local/opt/protobuf@3.6/bin:$PATH"' >> ~/.bash_profile
+    - export PATH="/usr/local/opt/protobuf@3.6/bin:$PATH"
+    - export LDFLAGS="-L/usr/local/opt/protobuf@3.6/lib"
+    - export CPPFLAGS="-I/usr/local/opt/protobuf@3.6/include"
+    - export PKG_CONFIG_PATH="/usr/local/opt/protobuf@3.6/lib/pkgconfig"
+#    - rm -rf /usr/local/Cellar/protobuf/3*/*
+#    - mv -f /usr/local/Cellar/protobuf@3.6/3.6.1.3_1/* /usr/local/Cellar/protobuf/3*/
+#    - ls /usr/local/Cellar/protobuf/3*
 #    - eval "${MATRIX_EVAL}"
     - protoc --version
     - java -version
