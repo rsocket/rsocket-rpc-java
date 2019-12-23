@@ -17,29 +17,32 @@ elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bin
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
-        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
+        -PbuildInfo.build.number="$TRAVIS_BUILD_NUMBER" \
+        -PbuildInfo.build.timestamp="$(git show -s --format=%ct HEAD)000" \
         build artifactoryPublish --stacktrace
 
 elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" == "" ] && [ "$bintrayUser" != "" ] ; then
 
-    echo -e "Building Branch Snapshot $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH/$TRAVIS_BUILD_NUMBER"
+    echo -e "Building Branch Snapshot $TRAVIS_REPO_SLUG/$TRAVIS_BRANCH/$TRAVIS_BUILD_NUMBER/$TRAVIS_BUILD_NUMBER"
     ./gradlew \
         -PversionSuffix="-${TRAVIS_BRANCH//\//-}-SNAPSHOT" \
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
-        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
+        -PbuildInfo.build.number="$TRAVIS_BUILD_NUMBER" \
+        -PbuildInfo.build.timestamp="$(git show -s --format=%ct HEAD)000" \
         build artifactoryPublish --stacktrace
 
 elif [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_TAG" != "" ] && [ "$bintrayUser" != "" ] ; then
 
     echo -e "Building Tag $TRAVIS_REPO_SLUG/$TRAVIS_TAG"
     ./gradlew \
-        -Pversion="$TRAVIS_TAG" -Pstage="$TRAVIS_BUILD_STAGE_NAME" -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
+        -Pversion="$TRAVIS_TAG" -Pstage="$TRAVIS_BUILD_STAGE_NAME" \
         -PbintrayUser="${bintrayUser}" -PbintrayKey="${bintrayKey}" \
         -PsonatypeUsername="${sonatypeUsername}" -PsonatypePassword="${sonatypePassword}" \
         -PvcProtobufLibs="/c/Program Files/protobuf/lib" -PvcProtobufInclude="/c/Program Files/protobuf/include" \
-        -PbuildNumber="$TRAVIS_BUILD_NUMBER" \
+        -PbuildInfo.build.number="$TRAVIS_BUILD_NUMBER" \
+        -PbuildInfo.build.timestamp="$(git show -s --format=%ct HEAD)000" \
         build bintrayUpload --stacktrace
 
 else
