@@ -15,10 +15,17 @@
  */
 package io.rsocket.ipc.exception;
 
-public class ServiceNotFound extends RuntimeException {
+import io.rsocket.exceptions.CustomRSocketException;
+
+public class ServiceNotFound extends CustomRSocketException {
   private static final long serialVersionUID = 1L;
 
   public ServiceNotFound(String service) {
-    super("can not find service " + service);
+    super(0x00000404, "Service not found " + service);
+  }
+
+  @Override
+  public synchronized Throwable fillInStackTrace() {
+    return this;
   }
 }

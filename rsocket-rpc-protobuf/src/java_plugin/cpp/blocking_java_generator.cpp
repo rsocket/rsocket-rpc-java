@@ -792,7 +792,8 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
       *vars,
-      "$Mono$<$Void$> response = metadataDecoder.decode(payload, this::doDecodeAndHandleFireAndForget);\n\n"
+      "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n"
+      "$Mono$<$Void$> response = this.doDecodeAndHandleFireAndForget(payload, decoded.metadata, decoded.route, decoded.spanContext);\n\n"
       "payload.release();\n\n"
       "return response;\n");
     p->Outdent();

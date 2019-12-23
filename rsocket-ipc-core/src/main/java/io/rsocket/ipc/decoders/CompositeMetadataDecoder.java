@@ -15,19 +15,21 @@
  */
 package io.rsocket.ipc.decoders;
 
+import static io.rsocket.ipc.frames.Metadata.getMetadata;
+import static io.rsocket.ipc.frames.Metadata.getMethod;
+import static io.rsocket.ipc.frames.Metadata.getService;
 import static io.rsocket.metadata.CompositeMetadataFlyweight.hasEntry;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.CharsetUtil;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
 import io.rsocket.ipc.MetadataDecoder;
-import io.rsocket.ipc.frames.Metadata;
 import io.rsocket.ipc.tracing.Tracing;
 import io.rsocket.metadata.CompositeMetadata;
 import io.rsocket.metadata.WellKnownMimeType;
-import java.nio.charset.Charset;
 import java.util.Iterator;
 
 public class CompositeMetadataDecoder implements MetadataDecoder {
@@ -47,15 +49,17 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
   }
 
   @Override
-  public <T> T decode(Payload payload, Handler<T> transformer) throws Exception {
+  public Metadata decode(Payload payload) throws Exception {
     ByteBuf metadata = payload.sliceMetadata();
 
     ByteBuf meta;
     String route = null;
     SpanContext context = null;
+    boolean isComposite = false;
 
     // TODO: fix that once Backward compatibility expire
     if (isCompositeMetadata(metadata)) {
+      isComposite = true;
       meta = metadata;
       Iterator<CompositeMetadata.Entry> iterator =
           new CompositeMetadata(metadata, false).iterator();
@@ -84,20 +88,20 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
       }
     } else {
       try {
-        String service = Metadata.getService(metadata);
-        String method = Metadata.getMethod(metadata);
-        meta = Metadata.getMetadata(metadata);
+        String service = getService(metadata);
+        String method = getMethod(metadata);
+        meta = getMetadata(metadata);
 
         route = service + "." + method;
         context = Tracing.deserializeTracingMetadata(tracer, metadata);
       } catch (Throwable t) {
         // Here we probably got something from Spring-Messaging :D
-        route = metadata.toString(Charset.defaultCharset());
+        route = metadata.toString(CharsetUtil.UTF_8);
         meta = Unpooled.EMPTY_BUFFER;
       }
     }
 
-    return transformer.handleAndReply(payload.sliceData(), meta, route, context);
+    return new Metadata(meta, route, context, isComposite);
   }
 
   public static boolean isCompositeMetadata(ByteBuf compositeMetadata) {

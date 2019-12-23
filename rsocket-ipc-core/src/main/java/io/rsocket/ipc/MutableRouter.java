@@ -13,15 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.rsocket.ipc.util;
+package io.rsocket.ipc;
 
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.rsocket.Payload;
+import io.rsocket.ipc.util.IPCChannelFunction;
+import io.rsocket.ipc.util.IPCFunction;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-public interface IPCChannelFunction {
+public interface MutableRouter<SELF extends MutableRouter<SELF>> extends Router {
+  SELF withFireAndForgetRoute(String route, IPCFunction<Mono<Void>> function);
 
-  Flux<Payload> apply(Flux<Payload> source, Payload payload, ByteBuf metadata, SpanContext context)
-      throws Exception;
+  SELF withRequestResponseRoute(String route, IPCFunction<Mono<Payload>> function);
+
+  SELF withRequestStreamRoute(String route, IPCFunction<Flux<Payload>> function);
+
+  SELF withRequestChannelRoute(String route, IPCChannelFunction function);
+
+  SELF withMetadataPushRoute(String route, IPCFunction<Mono<Void>> function);
 }
