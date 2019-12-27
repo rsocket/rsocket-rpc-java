@@ -15,10 +15,10 @@
  */
 package io.rsocket.ipc.decoders;
 
+import static io.rsocket.ipc.frames.Metadata.canDecode;
 import static io.rsocket.ipc.frames.Metadata.getMetadata;
 import static io.rsocket.ipc.frames.Metadata.getMethod;
 import static io.rsocket.ipc.frames.Metadata.getService;
-import static io.rsocket.ipc.frames.Metadata.isDecodable;
 import static io.rsocket.metadata.CompositeMetadataFlyweight.hasEntry;
 
 import io.netty.buffer.ByteBuf;
@@ -57,7 +57,7 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
     Metadata compositeMetadata;
     if ((compositeMetadata = resolveCompositeMetadata(metadata)) != null) {
       return compositeMetadata;
-    } else if (isDecodable(metadata)) {
+    } else if (canDecode(metadata)) {
       return new DefaultMetadata(metadata, tracer);
     } else {
       // Here we probably got something from Spring-Messaging :D
