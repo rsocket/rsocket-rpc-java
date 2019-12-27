@@ -17,16 +17,17 @@ package io.rsocket.ipc.util;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.ipc.metrics.Metrics;
 import io.rsocket.util.ByteBufPayload;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 
+@SuppressWarnings("rawtypes")
 public class IPCMetricsAwareRequestChannelFunction implements IPCChannelFunction {
 
   final String route;
@@ -49,8 +50,9 @@ public class IPCMetricsAwareRequestChannelFunction implements IPCChannelFunction
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Flux<Payload> apply(
-      Flux<Payload> source, Payload payload, ByteBuf metadata, SpanContext context) {
+      Flux<Payload> source, Payload payload, MetadataDecoder.Metadata decodedMetadata) {
     return rc.apply(
             unmarshaller.apply(payload.sliceData()),
             source.map(
@@ -65,7 +67,7 @@ public class IPCMetricsAwareRequestChannelFunction implements IPCChannelFunction
                     throw Exceptions.propagate(t);
                   }
                 }),
-            metadata)
+            decodedMetadata.metadata())
         .map(o -> ByteBufPayload.create(marshaller.apply(o)))
         .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
   }

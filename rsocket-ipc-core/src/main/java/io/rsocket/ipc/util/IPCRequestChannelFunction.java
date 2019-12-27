@@ -16,15 +16,16 @@
 package io.rsocket.ipc.util;
 
 import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.util.ByteBufPayload;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 
+@SuppressWarnings("rawtypes")
 public class IPCRequestChannelFunction implements IPCChannelFunction {
 
   final String route;
@@ -44,8 +45,9 @@ public class IPCRequestChannelFunction implements IPCChannelFunction {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Flux<Payload> apply(
-      Flux<Payload> source, Payload payload, ByteBuf metadata, SpanContext context) {
+      Flux<Payload> source, Payload payload, MetadataDecoder.Metadata metadata) {
     return rc.apply(
             unmarshaller.apply(payload.sliceData()),
             source.map(
@@ -60,7 +62,7 @@ public class IPCRequestChannelFunction implements IPCChannelFunction {
                     throw Exceptions.propagate(t);
                   }
                 }),
-            metadata)
+            metadata.metadata())
         .map(o -> ByteBufPayload.create(marshaller.apply(o)));
   }
 }

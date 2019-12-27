@@ -353,7 +353,6 @@ public final class Server {
     @Override
     public SelfRegistrable toSelfRegistrable() {
       return (mutableRouter) -> {
-        router.getMetadataPushRegistry().forEach(mutableRouter::withMetadataPushRoute);
         router.getFireAndForgetRegistry().forEach(mutableRouter::withFireAndForgetRoute);
         router.getRequestResponseRegistry().forEach(mutableRouter::withRequestResponseRoute);
         router.getRequestStreamRegistry().forEach(mutableRouter::withRequestStreamRoute);

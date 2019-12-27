@@ -459,7 +459,7 @@ static void PrintClient(const ServiceDescriptor* service,
   // Default Encoder
   p->Print(
       *vars,
-      "this.metadataEncoder = new $BackwardCompatibleMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
+      "this.metadataEncoder = new $DefaultMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
 
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
@@ -534,7 +534,7 @@ static void PrintClient(const ServiceDescriptor* service,
   // Default Encoder
   p->Print(
       *vars,
-      "this.metadataEncoder = new $BackwardCompatibleMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
+      "this.metadataEncoder = new $DefaultMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
 
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
@@ -613,7 +613,7 @@ static void PrintClient(const ServiceDescriptor* service,
   // Default Encoder
   p->Print(
       *vars,
-      "this.metadataEncoder = new $BackwardCompatibleMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
+      "this.metadataEncoder = new $DefaultMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
 
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
@@ -694,7 +694,7 @@ static void PrintClient(const ServiceDescriptor* service,
   // Default Encoder
   p->Print(
       *vars,
-      "this.metadataEncoder = new $BackwardCompatibleMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
+      "this.metadataEncoder = new $DefaultMetadataEncoder$($ByteBufAllocator$.DEFAULT);\n");
 
   // RPC metrics
   for (int i = 0; i < service->method_count(); ++i) {
@@ -1351,7 +1351,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Print(
       *vars,
       "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n"
-      "$Mono$<$Void$> response = this.doDecodeAndHandleFireAndForget(payload, decoded.metadata, decoded.route, decoded.spanContext);\n\n"
+      "$Mono$<$Void$> response = this.doDecodeAndHandleFireAndForget(payload, decoded);\n\n"
       "payload.release();\n\n"
       "return response;\n");
     p->Outdent();
@@ -1382,9 +1382,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Print(
     *vars,
     "$Payload$ payload,\n"
-    "$ByteBuf$ metadata,\n"
-    "$String$ route,\n"
-    "$SpanContext$ spanContext\n");
+    "$MetadataDecoder$.Metadata decoded\n");
   p->Outdent();
   p->Print(
       *vars,
@@ -1392,7 +1390,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Indent();
   p->Print(
       *vars,
-      "switch(route) {\n");
+      "switch(decoded.route()) {\n");
   p->Indent();
   for (vector<const MethodDescriptor*>::iterator it = fire_and_forget.begin(); it != fire_and_forget.end(); ++it) {
     const MethodDescriptor* method = *it;
@@ -1405,7 +1403,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
         *vars,
-        "return this.do$method_name$FireAndForget(payload, metadata, spanContext);\n");
+        "return this.do$method_name$FireAndForget(payload, decoded);\n");
     p->Outdent();
     p->Print("}\n");
   }
@@ -1434,13 +1432,13 @@ static void PrintServer(const ServiceDescriptor* service,
 
     p->Print(
         *vars,
-        "private $Mono$<$Void$> do$method_name$FireAndForget($Payload$ payload, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+        "private $Mono$<$Void$> do$method_name$FireAndForget($Payload$ payload, $MetadataDecoder$.Metadata decoded) throws $Exception$ {\n"
     );
     p->Indent();
     p->Print(
         *vars,
         "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-        "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
+        "return service.$lower_method_name$($input_type$.parseFrom(is), decoded.metadata()).transform($lower_method_name$).transform($lower_method_name$Trace.apply(decoded.spanContext()));\n");
     p->Outdent();
     p->Print("}\n");
     p->Print("\n");
@@ -1464,7 +1462,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Print(
       *vars,
       "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n"
-      "$Mono$<$Payload$> response = this.doDecodeAndHandleRequestResponse(payload, decoded.metadata, decoded.route, decoded.spanContext);\n\n"
+      "$Mono$<$Payload$> response = this.doDecodeAndHandleRequestResponse(payload, decoded);\n\n"
       "payload.release();\n\n"
       "return response;\n");
     p->Outdent();
@@ -1494,9 +1492,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Print(
     *vars,
     "$Payload$ payload,\n"
-    "$ByteBuf$ metadata,\n"
-    "$String$ route,\n"
-    "$SpanContext$ spanContext\n");
+    "$MetadataDecoder$.Metadata decoded\n");
   p->Outdent();
   p->Print(
       *vars,
@@ -1504,7 +1500,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Indent();
   p->Print(
       *vars,
-      "switch(route) {\n");
+      "switch(decoded.route()) {\n");
   p->Indent();
   for (vector<const MethodDescriptor*>::iterator it = request_response.begin(); it != request_response.end(); ++it) {
     const MethodDescriptor* method = *it;
@@ -1517,7 +1513,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
         *vars,
-        "return this.do$method_name$RequestResponse(payload, metadata, spanContext);\n");
+        "return this.do$method_name$RequestResponse(payload, decoded);\n");
     p->Outdent();
     p->Print("}\n");
   }
@@ -1545,13 +1541,13 @@ static void PrintServer(const ServiceDescriptor* service,
 
     p->Print(
         *vars,
-        "private $Mono$<$Payload$> do$method_name$RequestResponse($Payload$ payload, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+        "private $Mono$<$Payload$> do$method_name$RequestResponse($Payload$ payload, $MetadataDecoder$.Metadata decoded) throws $Exception$ {\n"
     );
     p->Indent();
     p->Print(
         *vars,
         "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-        "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
+        "return service.$lower_method_name$($input_type$.parseFrom(is), decoded.metadata()).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(decoded.spanContext()));\n");
     p->Outdent();
     p->Print("}\n");
     p->Print("\n");
@@ -1576,7 +1572,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Print(
       *vars,
       "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n"
-      "$Flux$<$Payload$> response = this.doDecodeAndHandleRequestStream(payload, decoded.metadata, decoded.route, decoded.spanContext);\n\n"
+      "$Flux$<$Payload$> response = this.doDecodeAndHandleRequestStream(payload, decoded);\n\n"
       "payload.release();\n\n"
       "return response;\n");
     p->Outdent();
@@ -1606,9 +1602,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Print(
     *vars,
     "$Payload$ payload,\n"
-    "$ByteBuf$ metadata,\n"
-    "$String$ route,\n"
-    "$SpanContext$ spanContext\n");
+    "$MetadataDecoder$.Metadata decoded\n");
   p->Outdent();
   p->Print(
       *vars,
@@ -1616,7 +1610,7 @@ static void PrintServer(const ServiceDescriptor* service,
   p->Indent();
   p->Print(
       *vars,
-      "switch(route) {\n");
+      "switch(decoded.route()) {\n");
   p->Indent();
   for (vector<const MethodDescriptor*>::iterator it = request_stream.begin(); it != request_stream.end(); ++it) {
     const MethodDescriptor* method = *it;
@@ -1629,7 +1623,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
         *vars,
-        "return this.do$method_name$RequestStream(payload, metadata, spanContext);\n");
+        "return this.do$method_name$RequestStream(payload, decoded);\n");
     p->Outdent();
     p->Print("}\n");
   }
@@ -1657,13 +1651,13 @@ static void PrintServer(const ServiceDescriptor* service,
 
     p->Print(
         *vars,
-        "private $Flux$<$Payload$> do$method_name$RequestStream($Payload$ payload, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+        "private $Flux$<$Payload$> do$method_name$RequestStream($Payload$ payload, $MetadataDecoder$.Metadata decoded) throws $Exception$ {\n"
     );
     p->Indent();
     p->Print(
         *vars,
         "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
-        "return service.$lower_method_name$($input_type$.parseFrom(is), metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
+        "return service.$lower_method_name$($input_type$.parseFrom(is), decoded.metadata()).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(decoded.spanContext()));\n");
     p->Outdent();
     p->Print("}\n");
     p->Print("\n");
@@ -1685,12 +1679,12 @@ static void PrintServer(const ServiceDescriptor* service,
       "try {\n");
     p->Indent();
     p->Print(
-      *vars,
-      "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n");
+        *vars,
+        "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n");
 
     p->Print(
         *vars,
-        "switch(decoded.route) {\n");
+        "switch(decoded.route()) {\n");
     p->Indent();
     for (vector<const MethodDescriptor*>::iterator it = request_channel.begin(); it != request_channel.end(); ++it) {
       const MethodDescriptor* method = *it;
@@ -1703,7 +1697,7 @@ static void PrintServer(const ServiceDescriptor* service,
       p->Indent();
       p->Print(
           *vars,
-          "return this.do$method_name$RequestChannel(payloads, payload, decoded.metadata, decoded.spanContext);\n");
+          "return this.do$method_name$RequestChannel(payloads, payload, decoded);\n");
       p->Outdent();
       p->Print("}\n");
     }
@@ -1790,7 +1784,7 @@ static void PrintServer(const ServiceDescriptor* service,
 
     p->Print(
         *vars,
-        "private $Flux$<$Payload$> do$method_name$RequestChannel($Flux$<$Payload$> publisher, $Payload$ payload, $ByteBuf$ metadata, $SpanContext$ spanContext) throws $Exception$ {\n"
+        "private $Flux$<$Payload$> do$method_name$RequestChannel($Flux$<$Payload$> publisher, $Payload$ payload, $MetadataDecoder$.Metadata decoded) throws $Exception$ {\n"
     );
     p->Indent();
     p->Print(
@@ -1804,11 +1798,11 @@ static void PrintServer(const ServiceDescriptor* service,
     if (method->server_streaming()) {
       p->Print(
           *vars,
-          "return service.$lower_method_name$(messages, metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext));\n");
+          "return service.$lower_method_name$(messages, decoded.metadata()).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(decoded.spanContext()));\n");
     } else {
       p->Print(
           *vars,
-          "return service.$lower_method_name$(messages, metadata).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(spanContext)).$flux$();\n");
+          "return service.$lower_method_name$(messages, decoded.metadata()).map(serializer).transform($lower_method_name$).transform($lower_method_name$Trace.apply(decoded.spanContext())).$flux$();\n");
     }
     p->Outdent();
     p->Print("}\n");
@@ -2011,7 +2005,7 @@ void GenerateClient(const ServiceDescriptor* service,
   vars["HashMap"] = "java.util.HashMap";
   vars["Supplier"] = "java.util.function.Supplier";
   vars["MetadataEncoder"] = "io.rsocket.ipc.MetadataEncoder";
-  vars["BackwardCompatibleMetadataEncoder"] = "io.rsocket.ipc.encoders.BackwardCompatibleMetadataEncoder";
+  vars["DefaultMetadataEncoder"] = "io.rsocket.ipc.encoders.DefaultMetadataEncoder";
   vars["SimpleSpanContext"] = "io.rsocket.ipc.tracing.SimpleSpanContext";
 
   Printer printer(out, '$');

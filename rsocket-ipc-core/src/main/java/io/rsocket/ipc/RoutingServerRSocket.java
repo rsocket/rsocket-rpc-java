@@ -20,14 +20,13 @@ import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.ResponderRSocket;
 import io.rsocket.ipc.decoders.CompositeMetadataDecoder;
-import io.rsocket.ipc.exception.ServiceNotFound;
+import io.rsocket.ipc.exception.RouteNotFound;
 import io.rsocket.ipc.util.IPCChannelFunction;
 import io.rsocket.ipc.util.IPCFunction;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@SuppressWarnings("unchecked")
 public class RoutingServerRSocket extends AbstractRSocket implements ResponderRSocket {
 
   final Router router;
@@ -49,17 +48,16 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Mono<Void> fireAndForget(Payload payload) {
     try {
-      MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
+      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
 
-      IPCFunction<Mono<Void>> monoIPCFunction =
-          this.router.routeFireAndForget(decodedMetadata.route);
+      final String route = decodedMetadata.route();
+      final IPCFunction<Mono<Void>> monoIPCFunction = this.router.routeFireAndForget(route);
 
       if (monoIPCFunction == null) {
-        return Mono.error(new ServiceNotFound("Nothing found for route " + decodedMetadata.route));
+        return Mono.error(new RouteNotFound("Nothing found for route " + route));
       }
 
-      Mono<Void> response =
-          monoIPCFunction.apply(payload, decodedMetadata.metadata, decodedMetadata.spanContext);
+      final Mono<Void> response = monoIPCFunction.apply(payload, decodedMetadata);
 
       payload.release();
 
@@ -73,18 +71,16 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Mono<Payload> requestResponse(Payload payload) {
     try {
-      MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
+      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
 
-      IPCFunction<Mono<Payload>> monoIPCFunction =
-          this.router.routeRequestResponse(decodedMetadata.route);
+      final String route = decodedMetadata.route();
+      final IPCFunction<Mono<Payload>> monoIPCFunction = this.router.routeRequestResponse(route);
 
       if (monoIPCFunction == null) {
-        return Mono.error(
-            new NullPointerException("nothing found for route " + decodedMetadata.route));
+        return Mono.error(new NullPointerException("nothing found for route " + route));
       }
 
-      Mono<Payload> response =
-          monoIPCFunction.apply(payload, decodedMetadata.metadata, decodedMetadata.spanContext);
+      final Mono<Payload> response = monoIPCFunction.apply(payload, decodedMetadata);
 
       payload.release();
 
@@ -98,17 +94,16 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Flux<Payload> requestStream(Payload payload) {
     try {
-      MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
+      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
 
-      IPCFunction<Flux<Payload>> ffContext = this.router.routeRequestStream(decodedMetadata.route);
+      final String route = decodedMetadata.route();
+      final IPCFunction<Flux<Payload>> ffContext = this.router.routeRequestStream(route);
 
       if (ffContext == null) {
-        return Flux.error(
-            new NullPointerException("nothing found for route " + decodedMetadata.route));
+        return Flux.error(new NullPointerException("nothing found for route " + route));
       }
 
-      Flux<Payload> response =
-          ffContext.apply(payload, decodedMetadata.metadata, decodedMetadata.spanContext);
+      final Flux<Payload> response = ffContext.apply(payload, decodedMetadata);
 
       payload.release();
 
@@ -124,26 +119,10 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
     return Flux.from(payloads)
         .switchOnFirst(
             (firstSignal, flux) -> {
-              Payload payload = firstSignal.get();
+              final Payload payload = firstSignal.get();
+
               if (payload != null) {
-                try {
-                  MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
-                  IPCChannelFunction ffContext =
-                      this.router.routeRequestChannel(decodedMetadata.route);
-
-                  if (ffContext == null) {
-                    payload.release();
-                    return Flux.error(
-                        new NullPointerException(
-                            "nothing found for route " + decodedMetadata.route));
-                  }
-
-                  return ffContext.apply(
-                      flux, payload, decodedMetadata.metadata, decodedMetadata.spanContext);
-                } catch (Throwable t) {
-                  payload.release();
-                  return Flux.error(t);
-                }
+                return doRequestChannel(payload, flux);
               }
 
               return flux;
@@ -152,18 +131,22 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
 
   @Override
   public Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
+    return doRequestChannel(payload, Flux.from(payloads));
+  }
+
+  private Flux<Payload> doRequestChannel(Payload payload, Flux<Payload> payloadFlux) {
     try {
-      MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
-      IPCChannelFunction ffContext = this.router.routeRequestChannel(decodedMetadata.route);
+      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
+
+      final String route = decodedMetadata.route();
+      final IPCChannelFunction ffContext = this.router.routeRequestChannel(route);
 
       if (ffContext == null) {
         payload.release();
-        return Flux.error(
-            new NullPointerException("nothing found for route " + decodedMetadata.route));
+        return Flux.error(new NullPointerException("nothing found for route " + route));
       }
 
-      return ffContext.apply(
-          Flux.from(payloads), payload, decodedMetadata.metadata, decodedMetadata.spanContext);
+      return ffContext.apply(payloadFlux, payload, decodedMetadata);
     } catch (Throwable t) {
       payload.release();
       return Flux.error(t);

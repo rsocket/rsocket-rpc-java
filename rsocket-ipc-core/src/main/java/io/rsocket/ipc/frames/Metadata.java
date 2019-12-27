@@ -55,6 +55,22 @@ public class Metadata {
     return byteBuf;
   }
 
+  public static boolean isDecodable(ByteBuf byteBuf) {
+    int offset = Short.BYTES;
+
+    int serviceLength = byteBuf.getShort(offset);
+    offset += Short.BYTES + serviceLength;
+
+    int methodLength = byteBuf.getShort(offset);
+    offset += Short.BYTES + methodLength;
+
+    int tracingLength = byteBuf.getShort(offset);
+    offset += Short.BYTES + tracingLength;
+
+    int metadataLength = byteBuf.readableBytes() - offset;
+    return metadataLength >= 0;
+  }
+
   public static int getVersion(ByteBuf byteBuf) {
     return byteBuf.getShort(0) & 0x7FFF;
   }

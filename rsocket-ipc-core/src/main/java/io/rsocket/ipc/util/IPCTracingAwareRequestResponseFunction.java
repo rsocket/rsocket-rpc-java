@@ -15,18 +15,18 @@
  */
 package io.rsocket.ipc.util;
 
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.ipc.tracing.Tag;
 import io.rsocket.ipc.tracing.Tracing;
 import io.rsocket.util.ByteBufPayload;
 import reactor.core.publisher.Mono;
 
+@SuppressWarnings("rawtypes")
 public class IPCTracingAwareRequestResponseFunction implements IPCFunction<Mono<Payload>> {
 
   final String route;
@@ -49,9 +49,10 @@ public class IPCTracingAwareRequestResponseFunction implements IPCFunction<Mono<
   }
 
   @Override
-  public Mono<Payload> apply(Payload payload, ByteBuf metadata, SpanContext context) {
+  @SuppressWarnings("unchecked")
+  public Mono<Payload> apply(Payload payload, MetadataDecoder.Metadata metadata) {
     Object input = unmarshaller.apply(payload.sliceData());
-    return rr.apply(input, metadata)
+    return rr.apply(input, metadata.metadata())
         .map(o -> ByteBufPayload.create(marshaller.apply(o)))
         .transform(
             Tracing.traceAsChild(
@@ -60,6 +61,6 @@ public class IPCTracingAwareRequestResponseFunction implements IPCFunction<Mono<
                     Tag.of("rsocket.route", route),
                     Tag.of("rsocket.ipc.role", "server"),
                     Tag.of("rsocket.ipc.version", "ipc"))
-                .apply(context));
+                .apply(metadata.spanContext()));
   }
 }

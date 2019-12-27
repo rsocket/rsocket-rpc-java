@@ -25,14 +25,12 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class SimpleRouter implements MutableRouter<SimpleRouter> {
-  final Map<String, IPCFunction<Mono<Void>>> metadataPushRegistry;
   final Map<String, IPCFunction<Mono<Void>>> fireAndForgetRegistry;
   final Map<String, IPCFunction<Mono<Payload>>> requestResponseRegistry;
   final Map<String, IPCFunction<Flux<Payload>>> requestStreamRegistry;
   final Map<String, IPCChannelFunction> requestChannelRegistry;
 
   public SimpleRouter() {
-    this.metadataPushRegistry = new HashMap<>();
     this.fireAndForgetRegistry = new HashMap<>();
     this.requestResponseRegistry = new HashMap<>();
     this.requestStreamRegistry = new HashMap<>();
@@ -60,11 +58,6 @@ public class SimpleRouter implements MutableRouter<SimpleRouter> {
   }
 
   @Override
-  public IPCFunction<Mono<Void>> routeMetadataPush(String route) {
-    return metadataPushRegistry.get(route);
-  }
-
-  @Override
   public SimpleRouter withFireAndForgetRoute(String route, IPCFunction<Mono<Void>> function) {
     fireAndForgetRegistry.put(route, function);
     return this;
@@ -86,16 +79,6 @@ public class SimpleRouter implements MutableRouter<SimpleRouter> {
   public SimpleRouter withRequestChannelRoute(String route, IPCChannelFunction function) {
     requestChannelRegistry.put(route, function);
     return this;
-  }
-
-  @Override
-  public SimpleRouter withMetadataPushRoute(String route, IPCFunction<Mono<Void>> function) {
-    metadataPushRegistry.put(route, function);
-    return this;
-  }
-
-  public Map<String, IPCFunction<Mono<Void>>> getMetadataPushRegistry() {
-    return metadataPushRegistry;
   }
 
   public Map<String, IPCFunction<Mono<Void>>> getFireAndForgetRegistry() {

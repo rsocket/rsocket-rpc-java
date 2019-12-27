@@ -24,11 +24,11 @@ import io.rsocket.ipc.tracing.Tracing;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BackwardCompatibleMetadataEncoder implements MetadataEncoder {
+public class DefaultMetadataEncoder implements MetadataEncoder {
 
   final ByteBufAllocator allocator;
 
-  public BackwardCompatibleMetadataEncoder(ByteBufAllocator allocator) {
+  public DefaultMetadataEncoder(ByteBufAllocator allocator) {
     this.allocator = allocator;
   }
 

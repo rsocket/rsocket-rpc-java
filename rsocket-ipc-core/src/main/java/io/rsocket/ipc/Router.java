@@ -30,6 +30,4 @@ public interface Router {
   IPCFunction<Flux<Payload>> routeRequestStream(String route);
 
   IPCChannelFunction routeRequestChannel(String route);
-
-  IPCFunction<Mono<Void>> routeMetadataPush(String route);
 }

@@ -51,7 +51,6 @@ class IPCServerRSocket extends RoutingServerRSocket implements IPCRSocket, SelfR
 
   @Override
   public void selfRegister(MutableRouter mutableRouter) {
-    simpleRouter.getMetadataPushRegistry().forEach(mutableRouter::withMetadataPushRoute);
     simpleRouter.getFireAndForgetRegistry().forEach(mutableRouter::withFireAndForgetRoute);
     simpleRouter.getRequestResponseRegistry().forEach(mutableRouter::withRequestResponseRoute);
     simpleRouter.getRequestStreamRegistry().forEach(mutableRouter::withRequestStreamRoute);

@@ -15,14 +15,14 @@
  */
 package io.rsocket.ipc.util;
 
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.Unmarshaller;
 import reactor.core.publisher.Mono;
 
+@SuppressWarnings("rawtypes")
 public class IPCFireAndForgetFunction implements IPCFunction<Mono<Void>> {
 
   final String route;
@@ -39,8 +39,9 @@ public class IPCFireAndForgetFunction implements IPCFunction<Mono<Void>> {
   }
 
   @Override
-  public Mono<Void> apply(Payload payload, ByteBuf metadata, SpanContext context) {
+  @SuppressWarnings("unchecked")
+  public Mono<Void> apply(Payload payload, MetadataDecoder.Metadata metadata) {
     Object input = unmarshaller.apply(payload.sliceData());
-    return fnf.apply(input, metadata);
+    return fnf.apply(input, metadata.metadata());
   }
 }

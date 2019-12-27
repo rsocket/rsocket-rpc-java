@@ -15,13 +15,12 @@
  */
 package io.rsocket.ipc.util;
 
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.rsocket.Payload;
+import io.rsocket.ipc.MetadataDecoder;
 import reactor.core.publisher.Flux;
 
 public interface IPCChannelFunction {
 
-  Flux<Payload> apply(Flux<Payload> source, Payload payload, ByteBuf metadata, SpanContext context)
+  Flux<Payload> apply(Flux<Payload> source, Payload payload, MetadataDecoder.Metadata metadata)
       throws Exception;
 }

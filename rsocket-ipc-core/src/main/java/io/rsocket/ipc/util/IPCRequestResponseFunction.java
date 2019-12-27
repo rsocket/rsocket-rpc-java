@@ -15,15 +15,15 @@
  */
 package io.rsocket.ipc.util;
 
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.util.ByteBufPayload;
 import reactor.core.publisher.Mono;
 
+@SuppressWarnings("rawtypes")
 public class IPCRequestResponseFunction implements IPCFunction<Mono<Payload>> {
 
   final String route;
@@ -43,8 +43,10 @@ public class IPCRequestResponseFunction implements IPCFunction<Mono<Payload>> {
   }
 
   @Override
-  public Mono<Payload> apply(Payload payload, ByteBuf metadata, SpanContext context) {
+  @SuppressWarnings("unchecked")
+  public Mono<Payload> apply(Payload payload, MetadataDecoder.Metadata metadata) {
     Object input = unmarshaller.apply(payload.sliceData());
-    return rr.apply(input, metadata).map(o -> ByteBufPayload.create(marshaller.apply(o)));
+    return rr.apply(input, metadata.metadata())
+        .map(o -> ByteBufPayload.create(marshaller.apply(o)));
   }
 }

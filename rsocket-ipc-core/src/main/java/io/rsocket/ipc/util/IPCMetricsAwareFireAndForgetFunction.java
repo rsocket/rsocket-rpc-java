@@ -16,15 +16,15 @@
 package io.rsocket.ipc.util;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.ipc.metrics.Metrics;
 import reactor.core.publisher.Mono;
 
+@SuppressWarnings("rawtypes")
 public class IPCMetricsAwareFireAndForgetFunction implements IPCFunction<Mono<Void>> {
 
   final String route;
@@ -47,9 +47,10 @@ public class IPCMetricsAwareFireAndForgetFunction implements IPCFunction<Mono<Vo
   }
 
   @Override
-  public Mono<Void> apply(Payload payload, ByteBuf metadata, SpanContext context) {
+  @SuppressWarnings("unchecked")
+  public Mono<Void> apply(Payload payload, MetadataDecoder.Metadata metadatat) {
     Object input = unmarshaller.apply(payload.sliceData());
-    return fnf.apply(input, metadata)
+    return fnf.apply(input, metadatat.metadata())
         .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
   }
 }

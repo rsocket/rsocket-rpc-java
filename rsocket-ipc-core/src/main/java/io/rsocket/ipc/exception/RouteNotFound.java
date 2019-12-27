@@ -17,11 +17,11 @@ package io.rsocket.ipc.exception;
 
 import io.rsocket.exceptions.CustomRSocketException;
 
-public class ServiceNotFound extends CustomRSocketException {
+public class RouteNotFound extends CustomRSocketException {
   private static final long serialVersionUID = 1L;
 
-  public ServiceNotFound(String service) {
-    super(0x00000404, "Service not found " + service);
+  public RouteNotFound(String route) {
+    super(0x00000404, "Handler not found for route [" + route + "]");
   }
 
   @Override

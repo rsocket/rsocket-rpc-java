@@ -29,6 +29,4 @@ public interface MutableRouter<SELF extends MutableRouter<SELF>> extends Router 
   SELF withRequestStreamRoute(String route, IPCFunction<Flux<Payload>> function);
 
   SELF withRequestChannelRoute(String route, IPCChannelFunction function);
-
-  SELF withMetadataPushRoute(String route, IPCFunction<Mono<Void>> function);
 }

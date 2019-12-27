@@ -16,11 +16,11 @@
 package io.rsocket.ipc.util;
 
 import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.ipc.tracing.Tag;
 import io.rsocket.ipc.tracing.Tracing;
@@ -28,6 +28,7 @@ import io.rsocket.util.ByteBufPayload;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 
+@SuppressWarnings("rawtypes")
 public class IPCTracingAwareRequestChannelFunction implements IPCChannelFunction {
 
   final String route;
@@ -50,8 +51,9 @@ public class IPCTracingAwareRequestChannelFunction implements IPCChannelFunction
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Flux<Payload> apply(
-      Flux<Payload> source, Payload payload, ByteBuf metadata, SpanContext context) {
+      Flux<Payload> source, Payload payload, MetadataDecoder.Metadata metadata) {
     return rs.apply(
             unmarshaller.apply(payload.sliceData()),
             source.map(
@@ -66,7 +68,7 @@ public class IPCTracingAwareRequestChannelFunction implements IPCChannelFunction
                     throw Exceptions.propagate(t);
                   }
                 }),
-            metadata)
+            metadata.metadata())
         .map(o -> ByteBufPayload.create(marshaller.apply(o)))
         .transform(
             Tracing.traceAsChild(
@@ -75,6 +77,6 @@ public class IPCTracingAwareRequestChannelFunction implements IPCChannelFunction
                     Tag.of("rsocket.route", route),
                     Tag.of("rsocket.ipc.role", "server"),
                     Tag.of("rsocket.ipc.version", "ipc"))
-                .apply(context));
+                .apply(metadata.spanContext()));
   }
 }

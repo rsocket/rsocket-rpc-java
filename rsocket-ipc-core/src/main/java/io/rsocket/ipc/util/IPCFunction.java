@@ -15,11 +15,10 @@
  */
 package io.rsocket.ipc.util;
 
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.rsocket.Payload;
+import io.rsocket.ipc.MetadataDecoder;
 
 public interface IPCFunction<RESULT> {
 
-  RESULT apply(Payload payload, ByteBuf metadata, SpanContext context) throws Exception;
+  RESULT apply(Payload payload, MetadataDecoder.Metadata metadata) throws Exception;
 }

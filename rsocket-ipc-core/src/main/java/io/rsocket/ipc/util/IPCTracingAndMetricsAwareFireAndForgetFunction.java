@@ -16,12 +16,11 @@
 package io.rsocket.ipc.util;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.netty.buffer.ByteBuf;
-import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.rsocket.Payload;
 import io.rsocket.ipc.Functions;
 import io.rsocket.ipc.Marshaller;
+import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.ipc.metrics.Metrics;
 import io.rsocket.ipc.tracing.Tag;
@@ -29,6 +28,7 @@ import io.rsocket.ipc.tracing.Tracing;
 import io.rsocket.util.ByteBufPayload;
 import reactor.core.publisher.Mono;
 
+@SuppressWarnings("rawtypes")
 public class IPCTracingAndMetricsAwareFireAndForgetFunction implements IPCFunction<Mono<Void>> {
 
   final String route;
@@ -54,9 +54,10 @@ public class IPCTracingAndMetricsAwareFireAndForgetFunction implements IPCFuncti
   }
 
   @Override
-  public Mono<Void> apply(Payload payload, ByteBuf metadata, SpanContext context) {
+  @SuppressWarnings("unchecked")
+  public Mono<Void> apply(Payload payload, MetadataDecoder.Metadata metadata) {
     Object input = unmarshaller.apply(payload.sliceData());
-    return fnf.apply(input, metadata)
+    return fnf.apply(input, metadata.metadata())
         .map(o -> ByteBufPayload.create(marshaller.apply(o)))
         .transform(
             Tracing.traceAsChild(
@@ -65,7 +66,7 @@ public class IPCTracingAndMetricsAwareFireAndForgetFunction implements IPCFuncti
                     Tag.of("rsocket.route", route),
                     Tag.of("rsocket.ipc.role", "server"),
                     Tag.of("rsocket.ipc.version", "ipc"))
-                .apply(context))
+                .apply(metadata.spanContext()))
         .transform(Metrics.timed(meterRegistry, "rsocket.server", "route", route));
   }
 }

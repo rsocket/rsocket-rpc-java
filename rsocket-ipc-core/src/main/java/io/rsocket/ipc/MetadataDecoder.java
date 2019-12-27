@@ -24,17 +24,13 @@ public interface MetadataDecoder {
 
   Metadata decode(Payload payload) throws Exception;
 
-  final class Metadata {
-    public final ByteBuf metadata;
-    public final String route;
-    public final SpanContext spanContext;
-    public final boolean isComposite;
+  interface Metadata {
+    ByteBuf metadata();
 
-    public Metadata(ByteBuf metadata, String route, SpanContext spanContext, boolean isComposite) {
-      this.metadata = metadata;
-      this.route = route;
-      this.spanContext = spanContext;
-      this.isComposite = isComposite;
-    }
+    String route();
+
+    SpanContext spanContext();
+
+    boolean isComposite();
   }
 }
