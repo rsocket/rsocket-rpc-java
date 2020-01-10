@@ -792,7 +792,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
       *vars,
-      "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n"
+      "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload.sliceMetadata());\n\n"
       "$Mono$<$Void$> response = this.doDecodeAndHandleFireAndForget(payload, decoded);\n\n"
       "payload.release();\n\n"
       "return response;\n");
@@ -905,7 +905,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
       *vars,
-      "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n"
+      "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload.sliceMetadata());\n\n"
       "$Mono$<$Payload$> response = this.doDecodeAndHandleRequestResponse(payload, decoded);\n\n"
       "payload.release();\n\n"
       "return response;\n");
@@ -1017,7 +1017,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
       *vars,
-      "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n"
+      "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload.sliceMetadata());\n\n"
       "$Flux$<$Payload$> response = this.doDecodeAndHandleRequestStream(payload, decoded);\n\n"
       "payload.release();\n\n"
       "return response;\n");
@@ -1128,7 +1128,7 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
         *vars,
-        "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload);\n\n");
+        "$MetadataDecoder$.Metadata decoded = metadataDecoder.decode(payload.sliceMetadata());\n\n");
 
     p->Print(
         *vars,

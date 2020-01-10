@@ -17,12 +17,11 @@ package io.rsocket.ipc;
 
 import io.netty.buffer.ByteBuf;
 import io.opentracing.SpanContext;
-import io.rsocket.Payload;
 
 @FunctionalInterface
 public interface MetadataDecoder {
 
-  Metadata decode(Payload payload) throws Exception;
+  Metadata decode(ByteBuf metadataByteBuf) throws Exception;
 
   interface Metadata {
     ByteBuf metadata();

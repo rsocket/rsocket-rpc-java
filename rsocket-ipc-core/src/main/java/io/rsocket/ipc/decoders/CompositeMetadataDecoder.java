@@ -26,7 +26,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.CharsetUtil;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
-import io.rsocket.Payload;
 import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.tracing.Tracing;
 import io.rsocket.metadata.WellKnownMimeType;
@@ -50,18 +49,17 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
   }
 
   @Override
-  public Metadata decode(Payload payload) {
-    ByteBuf metadata = payload.sliceMetadata();
+  public Metadata decode(ByteBuf metadataByteBuf) {
 
     // TODO: fix that once Backward compatibility expire
     Metadata compositeMetadata;
-    if ((compositeMetadata = resolveCompositeMetadata(metadata)) != null) {
+    if ((compositeMetadata = resolveCompositeMetadata(metadataByteBuf)) != null) {
       return compositeMetadata;
-    } else if (canDecode(metadata)) {
-      return new DefaultMetadata(metadata, tracer);
+    } else if (canDecode(metadataByteBuf)) {
+      return new DefaultMetadata(metadataByteBuf, tracer);
     } else {
       // Here we probably got something from Spring-Messaging :D
-      return new PlainMetadata(metadata);
+      return new PlainMetadata(metadataByteBuf);
     }
   }
 

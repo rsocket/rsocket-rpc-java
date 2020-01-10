@@ -48,7 +48,7 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Mono<Void> fireAndForget(Payload payload) {
     try {
-      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
+      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload.sliceMetadata());
 
       final String route = decodedMetadata.route();
       final IPCFunction<Mono<Void>> monoIPCFunction = this.router.routeFireAndForget(route);
@@ -71,7 +71,7 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Mono<Payload> requestResponse(Payload payload) {
     try {
-      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
+      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload.sliceMetadata());
 
       final String route = decodedMetadata.route();
       final IPCFunction<Mono<Payload>> monoIPCFunction = this.router.routeRequestResponse(route);
@@ -94,7 +94,7 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Flux<Payload> requestStream(Payload payload) {
     try {
-      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
+      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload.sliceMetadata());
 
       final String route = decodedMetadata.route();
       final IPCFunction<Flux<Payload>> ffContext = this.router.routeRequestStream(route);
@@ -136,7 +136,7 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
 
   private Flux<Payload> doRequestChannel(Payload payload, Flux<Payload> payloadFlux) {
     try {
-      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload);
+      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload.sliceMetadata());
 
       final String route = decodedMetadata.route();
       final IPCChannelFunction ffContext = this.router.routeRequestChannel(route);
