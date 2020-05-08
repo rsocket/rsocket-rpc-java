@@ -4,11 +4,7 @@ This is intended to be used as an add on to the IPC module of rsocket/rsocket-rp
 
 The rsocket/rsocket-rpc-java project uses an outdated version of RSocket and doesn't work well with CompositeMetadata. It uses custom parsing and encoding of metadata content to route messages.
 
-This project provides drop in (see note) replacement MetadataDecoder and MetadataEncoder classes.
-
-**NOTE:**
-
-*Because rsocket-rpc-java isn't on maven, I'm using a fork of the project that can be accessed from jitpack. (the original rsocket-rpc-java fails on jitback because of protobuf requirements) That fork can be found here: https://github.com/regbo/lfp-rsocket-rpc-java*
+This project provides drop in (assuming RSocket RC1.7 and up) replacement MetadataDecoder and MetadataEncoder classes.
 
 The two classes at work are MetadataDecoderLFP and MetadataEncoderLFP. They use MetadataWriter and MetadataReader classes to allow for custom serialization of metadata content.
 
@@ -104,7 +100,7 @@ The standard [RSocket](http://rsocket.io) RPC Java implementation.
 2. Run the following Gradle command to build the project:
 
         $ ./gradlew clean build
-        
+    
 ## What Next?
 
  * [Motivation](./docs/motivation.md)
