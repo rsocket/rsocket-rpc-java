@@ -11,7 +11,6 @@ import java.util.stream.Stream;
 import io.netty.buffer.ByteBuf;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
-import io.rsocket.Payload;
 import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.encoders.MetadataReader;
 import io.rsocket.ipc.mimetype.MimeTypes;
@@ -43,21 +42,33 @@ public class MetadataDecoderLFP implements MetadataDecoder {
 	}
 
 	@Override
-	public final <RESULT> RESULT decode(Payload payload, Handler<RESULT> transformer) throws Exception {
-		ByteBuf metadata = payload.sliceMetadata();
-		// i think that we can retain reader slices bc we slice the data from the
-		// payload
-		MetadataReader metadataReader = new MetadataReader(metadata, true);
+	public Metadata decode(ByteBuf metadataByteBuf) throws Exception {
+		MetadataReader metadataReader = new MetadataReader(metadataByteBuf, true);
 		interceptors.forEach(v -> v.accept(metadataReader));
-		return decode(payload.sliceData(), metadataReader, metadata, transformer);
-	}
-
-	protected <RESULT> RESULT decode(ByteBuf data, MetadataReader metadataReader, ByteBuf metadata,
-			Handler<RESULT> transformer) throws Exception {
 		String route = getRoute(metadataReader);
-		SpanContext context = readTracingSpanContext(metadataReader);
-		RESULT result = transformer.handleAndReply(data, metadata, route, context);
-		return result;
+		SpanContext spanContext = readTracingSpanContext(metadataReader);
+		return new Metadata() {
+
+			@Override
+			public ByteBuf metadata() {
+				return metadataByteBuf;
+			}
+
+			@Override
+			public String route() {
+				return route;
+			}
+
+			@Override
+			public SpanContext spanContext() {
+				return spanContext;
+			}
+
+			@Override
+			public boolean isComposite() {
+				return true;
+			}
+		};
 	}
 
 	private String getRoute(MetadataReader metadataReader) {
