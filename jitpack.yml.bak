@@ -1,2 +1,2 @@
 install:
-   - ./gradlew clean -x test -x verifyGoogleJavaFormat build publishToMavenLocal
+   - .clean build publishToMavenLocal -x test -x verifyGoogleJavaFormat 
