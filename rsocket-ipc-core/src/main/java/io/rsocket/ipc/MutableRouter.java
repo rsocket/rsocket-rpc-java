@@ -15,7 +15,18 @@
  */
 package io.rsocket.ipc;
 
-public interface SelfRegistrable {
+import io.rsocket.Payload;
+import io.rsocket.ipc.util.IPCChannelFunction;
+import io.rsocket.ipc.util.IPCFunction;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-  void selfRegister(MutableRouter router);
+public interface MutableRouter<SELF extends MutableRouter<SELF>> extends Router {
+  SELF withFireAndForgetRoute(String route, IPCFunction<Mono<Void>> function);
+
+  SELF withRequestResponseRoute(String route, IPCFunction<Mono<Payload>> function);
+
+  SELF withRequestStreamRoute(String route, IPCFunction<Flux<Payload>> function);
+
+  SELF withRequestChannelRoute(String route, IPCChannelFunction function);
 }

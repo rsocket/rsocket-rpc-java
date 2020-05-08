@@ -15,10 +15,17 @@
  */
 package io.rsocket.ipc.exception;
 
-public class ServiceNotFound extends RuntimeException {
+import io.rsocket.exceptions.CustomRSocketException;
+
+public class RouteNotFound extends CustomRSocketException {
   private static final long serialVersionUID = 1L;
 
-  public ServiceNotFound(String service) {
-    super("can not find service " + service);
+  public RouteNotFound(String route) {
+    super(0x00000404, "Handler not found for route [" + route + "]");
+  }
+
+  @Override
+  public synchronized Throwable fillInStackTrace() {
+    return this;
   }
 }

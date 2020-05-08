@@ -15,26 +15,28 @@
  */
 package io.rsocket.ipc.decoders;
 
+import static io.rsocket.ipc.frames.Metadata.canDecode;
+import static io.rsocket.ipc.frames.Metadata.getMetadata;
+import static io.rsocket.ipc.frames.Metadata.getMethod;
+import static io.rsocket.ipc.frames.Metadata.getService;
 import static io.rsocket.metadata.CompositeMetadataFlyweight.hasEntry;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.CharsetUtil;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
-import io.rsocket.Payload;
 import io.rsocket.ipc.MetadataDecoder;
-import io.rsocket.ipc.frames.Metadata;
 import io.rsocket.ipc.tracing.Tracing;
-import io.rsocket.metadata.CompositeMetadata;
 import io.rsocket.metadata.WellKnownMimeType;
-import java.nio.charset.Charset;
-import java.util.Iterator;
 
 public class CompositeMetadataDecoder implements MetadataDecoder {
 
   static final int STREAM_METADATA_KNOWN_MASK = 0x80; // 1000 0000
 
   static final byte STREAM_METADATA_LENGTH_MASK = 0x7F; // 0111 1111
+  /** Tag max length in bytes */
+  static final int TAG_LENGTH_MAX = 0xFF;
 
   final Tracer tracer;
 
@@ -47,63 +49,133 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
   }
 
   @Override
-  public <T> T decode(Payload payload, Handler<T> transformer) throws Exception {
-    ByteBuf metadata = payload.sliceMetadata();
-
-    ByteBuf meta;
-    String route = null;
-    SpanContext context = null;
+  public Metadata decode(ByteBuf metadataByteBuf) {
 
     // TODO: fix that once Backward compatibility expire
-    if (isCompositeMetadata(metadata)) {
-      meta = metadata;
-      Iterator<CompositeMetadata.Entry> iterator =
-          new CompositeMetadata(metadata, false).iterator();
-
-      main:
-      while (iterator.hasNext()) {
-        CompositeMetadata.Entry next = iterator.next();
-
-        if (next.getClass() == CompositeMetadata.WellKnownMimeTypeEntry.class) {
-          CompositeMetadata.WellKnownMimeTypeEntry wellKnownMimeTypeEntry =
-              (CompositeMetadata.WellKnownMimeTypeEntry) next;
-          WellKnownMimeType type = wellKnownMimeTypeEntry.getType();
-          switch (type) {
-            case MESSAGE_RSOCKET_ROUTING:
-              {
-                route = wellKnownMimeTypeEntry.getMimeType();
-                // FIXME: once figure out tracing
-                break main;
-              }
-            case MESSAGE_RSOCKET_TRACING_ZIPKIN:
-              {
-                // TODO: figure out how to decode
-              }
-          }
-        }
-      }
+    Metadata compositeMetadata;
+    if ((compositeMetadata = resolveCompositeMetadata(metadataByteBuf)) != null) {
+      return compositeMetadata;
+    } else if (canDecode(metadataByteBuf)) {
+      return new DefaultMetadata(metadataByteBuf, tracer);
     } else {
-      try {
-        String service = Metadata.getService(metadata);
-        String method = Metadata.getMethod(metadata);
-        meta = Metadata.getMetadata(metadata);
-
-        route = service + "." + method;
-        context = Tracing.deserializeTracingMetadata(tracer, metadata);
-      } catch (Throwable t) {
-        // Here we probably got something from Spring-Messaging :D
-        route = metadata.toString(Charset.defaultCharset());
-        meta = Unpooled.EMPTY_BUFFER;
-      }
+      // Here we probably got something from Spring-Messaging :D
+      return new PlainMetadata(metadataByteBuf);
     }
-
-    return transformer.handleAndReply(payload.sliceData(), meta, route, context);
   }
 
-  public static boolean isCompositeMetadata(ByteBuf compositeMetadata) {
+  private static final class PlainMetadata implements Metadata {
+    private final ByteBuf metadata;
+
+    private PlainMetadata(ByteBuf metadata) {
+      this.metadata = metadata;
+    }
+
+    @Override
+    public ByteBuf metadata() {
+      return Unpooled.EMPTY_BUFFER;
+    }
+
+    @Override
+    public String route() {
+      return metadata.toString(CharsetUtil.UTF_8);
+    }
+
+    @Override
+    public SpanContext spanContext() {
+      return null;
+    }
+
+    @Override
+    public boolean isComposite() {
+      return false;
+    }
+  }
+
+  private static final class DefaultMetadata implements Metadata {
+
+    private final ByteBuf metadata;
+    private final Tracer tracer;
+
+    private DefaultMetadata(ByteBuf metadata, Tracer tracer) {
+      this.metadata = metadata;
+      this.tracer = tracer;
+    }
+
+    @Override
+    public ByteBuf metadata() {
+      return getMetadata(metadata);
+    }
+
+    @Override
+    public String route() {
+      ByteBuf m = this.metadata;
+      String service = getService(m);
+      String method = getMethod(m);
+
+      return service.isEmpty() ? method : (service + (method.isEmpty() ? "" : ("." + method)));
+    }
+
+    @Override
+    public SpanContext spanContext() {
+      return Tracing.deserializeTracingMetadata(tracer, metadata);
+    }
+
+    @Override
+    public boolean isComposite() {
+      return false;
+    }
+  }
+
+  private static final class CompositeMetadata implements Metadata {
+
+    private final ByteBuf metadata;
+    private final int firstRouteIndex;
+    private final int firstRouteLength;
+
+    private CompositeMetadata(ByteBuf metadata, int firstRouteIndex, int firstRouteLength) {
+      this.metadata = metadata;
+      this.firstRouteIndex = firstRouteIndex;
+      this.firstRouteLength = firstRouteLength;
+    }
+
+    @Override
+    public final ByteBuf metadata() {
+      return metadata;
+    }
+
+    @Override
+    public final String route() {
+      int firstRouteIndex = this.firstRouteIndex;
+      int firstRouteLength = this.firstRouteLength;
+
+      if (firstRouteIndex < 0 || firstRouteLength < 1) {
+        return null;
+      }
+      return metadata.toString(firstRouteIndex, firstRouteLength, CharsetUtil.UTF_8);
+    }
+
+    @Override
+    public final SpanContext spanContext() {
+      // FIXME: Figure out how to work with tracing metadata
+      return null;
+    }
+
+    @Override
+    public final boolean isComposite() {
+      return true;
+    }
+  }
+
+  /**
+   * @param compositeMetadata
+   * @return null or {@link CompositeMetadata}
+   */
+  public static Metadata resolveCompositeMetadata(ByteBuf compositeMetadata) {
     compositeMetadata.markReaderIndex();
     compositeMetadata.readerIndex(0);
 
+    int firstRouteIndex = -1;
+    int firstRouteLength = -1;
     int ridx = 0;
     while (hasEntry(compositeMetadata, ridx)) {
       if (compositeMetadata.isReadable()) {
@@ -124,7 +196,7 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
             compositeMetadata.skipBytes(mimeLength);
           } else {
             compositeMetadata.resetReaderIndex();
-            return false;
+            return null;
           }
         }
 
@@ -132,20 +204,40 @@ public class CompositeMetadataDecoder implements MetadataDecoder {
           // ensures the length medium can be read
           final int metadataLength = compositeMetadata.readUnsignedMedium();
           if (compositeMetadata.isReadable(metadataLength)) {
+            if (mimeIdOrLength < 0
+                && WellKnownMimeType.MESSAGE_RSOCKET_ROUTING.getIdentifier()
+                    == (mimeIdOrLength & STREAM_METADATA_LENGTH_MASK)) {
+              int readerIndex = compositeMetadata.readerIndex();
+              int routeLength =
+                  resolveFirstRouteLength(compositeMetadata, readerIndex, metadataLength);
+              firstRouteIndex = readerIndex + 1;
+              firstRouteLength = routeLength;
+
+              // FIXME: so far there is no reason to iterate further. Need to be changed once
+              // Tracing Metadata appeared
+              break;
+            }
+
             compositeMetadata.skipBytes(metadataLength);
           } else {
             compositeMetadata.resetReaderIndex();
-            return false;
+            return null;
           }
         } else {
           compositeMetadata.resetReaderIndex();
-          return false;
+          return null;
         }
       }
       ridx = compositeMetadata.readerIndex();
     }
 
     compositeMetadata.resetReaderIndex();
-    return true;
+    return new CompositeMetadata(compositeMetadata, firstRouteIndex, firstRouteLength);
+  }
+
+  public static int resolveFirstRouteLength(ByteBuf metadata, int readerIndex, int metadataLength) {
+    int tagLength = TAG_LENGTH_MAX & metadata.getByte(readerIndex);
+
+    return tagLength > metadataLength ? -1 : tagLength;
   }
 }

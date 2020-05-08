@@ -16,7 +16,7 @@ import io.rsocket.RSocketFactory;
 import io.rsocket.ipc.IPCRSocket;
 import io.rsocket.ipc.RequestHandlingRSocket;
 import io.rsocket.ipc.Unmarshaller;
-import io.rsocket.ipc.encoders.BackwardCompatibleMetadataEncoder;
+import io.rsocket.ipc.encoders.DefaultMetadataEncoder;
 import io.rsocket.ipc.marshallers.Json;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
@@ -80,7 +80,7 @@ public class GraphQLIntegrationTest {
     GraphQLClient.Query bookQuery =
         GraphQLClient.service("books")
             .rsocket(rsocket)
-            .customMetadataEncoder(new BackwardCompatibleMetadataEncoder(ByteBufAllocator.DEFAULT))
+            .customMetadataEncoder(new DefaultMetadataEncoder(ByteBufAllocator.DEFAULT))
             .noMeterRegistry()
             .noTracer()
             .marshall(Json.marshaller(GraphQLRequest.class))
