@@ -105,7 +105,7 @@ public class MetadataWriter {
 			return new SimpleImmutableEntry<>(e.getKey(), "");
 		});
 		write(mimeType, stream, s -> {
-			String query = encodeQueryString(s);
+			String query = MetadataUtils.encodeEntries(s);
 			return Stream.of(MetadataUtils.byteBufFromString(query));
 		});
 	}
@@ -127,27 +127,6 @@ public class MetadataWriter {
 						bb);
 		});
 
-	}
-
-	private static String encodeQueryString(Stream<? extends Entry<String, String>> entryStream) {
-		if (entryStream == null)
-			return "";
-		entryStream = entryStream.filter(Objects::nonNull);
-		entryStream = entryStream.filter(e -> !MetadataUtils.isNullOrEmpty(e.getKey()));
-		entryStream = entryStream.map(e -> {
-			String value = e.getValue();
-			if (value != null)
-				return e;
-			return new SimpleImmutableEntry<>(e.getKey(), "");
-		});
-		StringBuilder sb = new StringBuilder();
-		entryStream.forEach(ent -> {
-			if (sb.length() > 0)
-				sb.append("&");
-			sb.append(String.format("%s=%s", MetadataUtils.urlEncode(ent.getKey()),
-					MetadataUtils.urlEncode(ent.getValue())));
-		});
-		return sb.toString();
 	}
 
 }

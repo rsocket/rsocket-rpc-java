@@ -2,7 +2,6 @@ package io.rsocket.ipc.encoders;
 
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,7 +10,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.netty.buffer.ByteBuf;
@@ -76,7 +74,7 @@ public class MetadataReader {
 
 	public Stream<Entry<String, Optional<String>>> streamEntries(MimeType mimeType) {
 		return stream(toTest -> Objects.equals(toTest, mimeType), bb -> {
-			return parseQueryString(MetadataUtils.byteBufToString(bb));
+			return MetadataUtils.decodeEntries(MetadataUtils.byteBufToString(bb));
 		});
 	}
 
@@ -114,26 +112,6 @@ public class MetadataReader {
 
 	public CompositeMetadata getCompositeMetadata() {
 		return compositeMetadata;
-	}
-
-	private static Stream<Entry<String, Optional<String>>> parseQueryString(String query) {
-		if (MetadataUtils.isNullOrEmpty(query))
-			return Stream.empty();
-		while (query.startsWith("?"))
-			query = query.substring(1);
-		if (MetadataUtils.isNullOrEmpty(query))
-			return Stream.empty();
-		return Arrays.stream(query.split("&")).map(p -> splitQueryParameter(p));
-	}
-
-	private static Entry<String, Optional<String>> splitQueryParameter(String parameter) {
-		List<String> keyValue = Arrays.stream(parameter.split("=")).map(MetadataUtils::urlDecode).limit(2)
-				.collect(Collectors.toList());
-		if (keyValue.size() == 2) {
-			return new SimpleImmutableEntry<>(keyValue.get(0), Optional.of(keyValue.get(1)));
-		} else {
-			return new SimpleImmutableEntry<>(keyValue.get(0), Optional.empty());
-		}
 	}
 
 }

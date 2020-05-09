@@ -5,10 +5,15 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
@@ -17,11 +22,13 @@ import java.util.Spliterators.AbstractSpliterator;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.rsocket.ipc.mimetype.MimeType;
 import io.rsocket.metadata.WellKnownMimeType;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
@@ -147,6 +154,46 @@ public class MetadataUtils {
 		if (result == null)
 			result = WellKnownMimeType_FROM_STRING_CACHE_REF.get().get(mimeType.toLowerCase());
 		return Optional.ofNullable(result);
+	}
+
+	public static String encodeEntries(Stream<? extends Entry<String, String>> entryStream) {
+		if (entryStream == null)
+			return "";
+		entryStream = entryStream.filter(Objects::nonNull);
+		entryStream = entryStream.filter(e -> !MetadataUtils.isNullOrEmpty(e.getKey()));
+		entryStream = entryStream.map(e -> {
+			String value = e.getValue();
+			if (value != null)
+				return e;
+			return new SimpleImmutableEntry<>(e.getKey(), "");
+		});
+		StringBuilder sb = new StringBuilder();
+		entryStream.forEach(ent -> {
+			if (sb.length() > 0)
+				sb.append("&");
+			sb.append(String.format("%s=%s", MetadataUtils.urlEncode(ent.getKey()),
+					MetadataUtils.urlEncode(ent.getValue())));
+		});
+		return sb.toString();
+	}
+
+	public static Stream<Entry<String, Optional<String>>> decodeEntries(String value) {
+		if (MetadataUtils.isNullOrEmpty(value))
+			return Stream.empty();
+		while (value.startsWith("?"))
+			value = value.substring(1);
+		if (MetadataUtils.isNullOrEmpty(value))
+			return Stream.empty();
+		return Arrays.stream(value.split("&")).map(parameter -> {
+			List<String> keyValue = Arrays.stream(parameter.split("=")).map(MetadataUtils::urlDecode).limit(2)
+					.collect(Collectors.toList());
+			Entry<String, Optional<String>> result;
+			if (keyValue.size() == 2)
+				result = new SimpleImmutableEntry<>(keyValue.get(0), Optional.of(keyValue.get(1)));
+			else
+				result = new SimpleImmutableEntry<>(keyValue.get(0), Optional.empty());
+			return result;
+		});
 	}
 
 	public static class DisposableAddList<X> extends CopyOnWriteArrayList<X> {
