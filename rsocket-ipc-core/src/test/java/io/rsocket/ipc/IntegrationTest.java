@@ -25,6 +25,7 @@ import io.rsocket.ipc.decoders.CompositeMetadataDecoder;
 import io.rsocket.ipc.decoders.MetadataDecoderLFP;
 import io.rsocket.ipc.encoders.DefaultMetadataEncoder;
 import io.rsocket.ipc.encoders.MetadataEncoderLFP;
+import io.rsocket.ipc.encoders.MetadataReader;
 import io.rsocket.ipc.marshallers.Primitives;
 import io.rsocket.ipc.marshallers.Strings;
 import io.rsocket.ipc.mimetype.MimeTypes;
@@ -33,8 +34,11 @@ import io.rsocket.transport.local.LocalServerTransport;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.transport.netty.server.TcpServerTransport;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
+import java.util.stream.Stream;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -48,6 +52,7 @@ public class IntegrationTest {
 	@Test
 	public void test() {
 		MetadataDecoderLFP decoder = new MetadataDecoderLFP();
+		MetadataEncoderLFP encoder = new MetadataEncoderLFP();
 		RequestHandlingRSocket requestHandler = new RequestHandlingRSocket(decoder);
 		{// start server
 			SocketAcceptor socketAcceptor = (setup, client) -> Mono.just(requestHandler);
@@ -56,7 +61,6 @@ public class IntegrationTest {
 				java.util.logging.Logger.getLogger("[server]").log(Level.SEVERE, "uncaught error", t);
 			}).bind(TcpServerTransport.create("localhost", 7000)).block();
 		}
-		MetadataEncoderLFP encoder = new MetadataEncoderLFP();
 		RSocket rsocket;
 		{// start client
 			rsocket = RSocketConnector.create().connect(TcpClientTransport.create("localhost", 7000)).block();
@@ -64,8 +68,16 @@ public class IntegrationTest {
 		AtomicBoolean ff = new AtomicBoolean();
 
 		IPCRSocket service = Server.service("HelloService").noMeterRegistry().noTracer().marshall(Strings.marshaller())
-				.unmarshall(Strings.unmarshaller()).requestResponse("hello", (s, byteBuf) -> Mono.just("Hello -> " + s))
-				.requestResponse("goodbye", (s, byteBuf) -> Mono.just("Goodbye -> " + s))
+				.unmarshall(Strings.unmarshaller()).requestResponse("hello", (s, byteBuf) -> {
+					MetadataReader reader = new MetadataReader(byteBuf, false);
+					Stream<String> vals = reader.stream(v -> true, e -> Arrays.asList(
+							String.format("%s - %s", e.getMimeType(), e.getContent().toString(StandardCharsets.UTF_8)))
+							.stream());
+					vals.forEach(v -> {
+						System.out.println(v);
+					});
+					return Mono.just("Hello -> " + s);
+				}).requestResponse("goodbye", (s, byteBuf) -> Mono.just("Goodbye -> " + s))
 				.requestResponse("count", Primitives.intMarshaller(),
 						(charSequence, byteBuf) -> Mono.just(charSequence.length()))
 				.requestResponse("increment", Primitives.intUnmarshaller(), Primitives.intMarshaller(),
@@ -81,8 +93,8 @@ public class IntegrationTest {
 		requestHandler.withEndpoint(service);
 
 		Client<CharSequence, String> helloService = Client.service("HelloService").rsocket(rsocket)
-				.customMetadataEncoder(new DefaultMetadataEncoder(ByteBufAllocator.DEFAULT)).noMeterRegistry()
-				.noTracer().marshall(Strings.marshaller()).unmarshall(Strings.unmarshaller());
+				.customMetadataEncoder(encoder).noMeterRegistry().noTracer().marshall(Strings.marshaller())
+				.unmarshall(Strings.unmarshaller());
 
 		String r1 = helloService.requestResponse("hello").apply("Alice").block();
 		Assert.assertEquals("Hello -> Alice", r1);
@@ -94,6 +106,16 @@ public class IntegrationTest {
 				.expectComplete().verify();
 
 		helloService.fireAndForget("ff").apply("boom").block();
+		int maxSeconds = 10;
+		for (int i = 0; i < maxSeconds && !ff.get(); i++) {
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
+						? java.lang.RuntimeException.class.cast(e)
+						: new java.lang.RuntimeException(e);
+			}
+		}
 		Assert.assertTrue(ff.get());
 
 		String r3 = helloService.requestChannel("helloChannel").apply(Mono.just("Eve")).blockLast();
@@ -141,5 +163,9 @@ public class IntegrationTest {
 			}
 			Assert.assertEquals(failed, shouldFail);
 		}
+	}
+
+	public static void main(String[] args) {
+		new IntegrationTest().test();
 	}
 }

@@ -15,7 +15,7 @@ import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.encoders.MetadataReader;
 import io.rsocket.ipc.mimetype.MimeTypes;
 import io.rsocket.ipc.tracing.Tracing;
-import io.rsocket.ipc.util.MetadataUtils.DisposableAddList;
+import io.rsocket.ipc.util.IPCUtils.DisposableAddList;
 import reactor.core.Disposable;
 
 public class MetadataDecoderLFP implements MetadataDecoder {

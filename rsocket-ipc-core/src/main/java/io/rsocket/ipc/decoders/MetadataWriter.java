@@ -19,7 +19,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.rsocket.ipc.mimetype.MimeType;
-import io.rsocket.ipc.util.MetadataUtils;
+import io.rsocket.ipc.util.IPCUtils;
 import io.rsocket.metadata.CompositeMetadataFlyweight;
 import io.rsocket.metadata.WellKnownMimeType;
 
@@ -53,7 +53,7 @@ public class MetadataWriter {
 
 	public void writeString(MimeType mimeType, String... values) {
 		write(mimeType, values == null ? Stream.empty() : Arrays.asList(values).stream(),
-				s -> s.map(MetadataUtils::byteBufFromString));
+				s -> s.map(IPCUtils::byteBufFromString));
 	}
 
 	public void writeEntries(MimeType mimeType, String... keyValueEntries) {
@@ -87,26 +87,26 @@ public class MetadataWriter {
 			Iterable<String> value = ent.getValue();
 			if (value == null)
 				return Stream.empty();
-			Stream<Entry<String, String>> stream = MetadataUtils.stream(value.iterator())
+			Stream<Entry<String, String>> stream = IPCUtils.stream(value.iterator())
 					.map(v -> new SimpleImmutableEntry<>(ent.getKey(), v));
 			return stream;
 		});
-		writeEntries(mimeType, MetadataUtils.flatMap(streams));
+		writeEntries(mimeType, IPCUtils.flatMap(streams));
 	}
 
 	public void writeEntries(MimeType mimeType, Stream<? extends Entry<String, String>> stream) {
 		if (stream == null)
 			return;
 		stream = stream.filter(Objects::nonNull);
-		stream = stream.filter(e -> MetadataUtils.nonEmpty(e.getKey()));
+		stream = stream.filter(e -> IPCUtils.nonEmpty(e.getKey()));
 		stream = stream.map(e -> {
 			if (e.getValue() != null)
 				return e;
 			return new SimpleImmutableEntry<>(e.getKey(), "");
 		});
 		write(mimeType, stream, s -> {
-			String query = MetadataUtils.encodeEntries(s);
-			return Stream.of(MetadataUtils.byteBufFromString(query));
+			String query = IPCUtils.encodeEntries(s);
+			return Stream.of(IPCUtils.byteBufFromString(query));
 		});
 	}
 

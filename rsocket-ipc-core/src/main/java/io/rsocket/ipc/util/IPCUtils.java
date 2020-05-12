@@ -6,11 +6,9 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -28,12 +26,11 @@ import java.util.stream.StreamSupport;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.rsocket.ipc.mimetype.MimeType;
 import io.rsocket.metadata.WellKnownMimeType;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 
-public class MetadataUtils {
+public class IPCUtils {
 	public static final Charset CHARSET = StandardCharsets.UTF_8;
 
 	public static <X> Stream<X> stream(Iterator<X> iterator) {
@@ -94,7 +91,7 @@ public class MetadataUtils {
 
 	public static String urlDecode(String str) {
 		try {
-			return URLDecoder.decode(str, MetadataUtils.CHARSET.name());
+			return URLDecoder.decode(str, IPCUtils.CHARSET.name());
 		} catch (UnsupportedEncodingException e) {
 			throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
 					? java.lang.RuntimeException.class.cast(e)
@@ -104,7 +101,7 @@ public class MetadataUtils {
 
 	public static String urlEncode(String str) {
 		try {
-			return URLEncoder.encode(str, MetadataUtils.CHARSET.name());
+			return URLEncoder.encode(str, IPCUtils.CHARSET.name());
 		} catch (UnsupportedEncodingException e) {
 			throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
 					? java.lang.RuntimeException.class.cast(e)
@@ -130,7 +127,7 @@ public class MetadataUtils {
 	private static final AtomicReference<Map<String, WellKnownMimeType>> WellKnownMimeType_FROM_STRING_CACHE_REF = new AtomicReference<>();
 
 	public static Optional<WellKnownMimeType> parseWellKnownMimeType(String mimeType) {
-		if (MetadataUtils.isNullOrEmpty(mimeType))
+		if (IPCUtils.isNullOrEmpty(mimeType))
 			return Optional.empty();
 		if (WellKnownMimeType_FROM_STRING_CACHE_REF.get() == null)
 			synchronized (WellKnownMimeType_FROM_STRING_CACHE_REF) {
@@ -160,7 +157,7 @@ public class MetadataUtils {
 		if (entryStream == null)
 			return "";
 		entryStream = entryStream.filter(Objects::nonNull);
-		entryStream = entryStream.filter(e -> !MetadataUtils.isNullOrEmpty(e.getKey()));
+		entryStream = entryStream.filter(e -> !IPCUtils.isNullOrEmpty(e.getKey()));
 		entryStream = entryStream.map(e -> {
 			String value = e.getValue();
 			if (value != null)
@@ -171,21 +168,20 @@ public class MetadataUtils {
 		entryStream.forEach(ent -> {
 			if (sb.length() > 0)
 				sb.append("&");
-			sb.append(String.format("%s=%s", MetadataUtils.urlEncode(ent.getKey()),
-					MetadataUtils.urlEncode(ent.getValue())));
+			sb.append(String.format("%s=%s", IPCUtils.urlEncode(ent.getKey()), IPCUtils.urlEncode(ent.getValue())));
 		});
 		return sb.toString();
 	}
 
 	public static Stream<Entry<String, Optional<String>>> decodeEntries(String value) {
-		if (MetadataUtils.isNullOrEmpty(value))
+		if (IPCUtils.isNullOrEmpty(value))
 			return Stream.empty();
 		while (value.startsWith("?"))
 			value = value.substring(1);
-		if (MetadataUtils.isNullOrEmpty(value))
+		if (IPCUtils.isNullOrEmpty(value))
 			return Stream.empty();
 		return Arrays.stream(value.split("&")).map(parameter -> {
-			List<String> keyValue = Arrays.stream(parameter.split("=")).map(MetadataUtils::urlDecode).limit(2)
+			List<String> keyValue = Arrays.stream(parameter.split("=")).map(IPCUtils::urlDecode).limit(2)
 					.collect(Collectors.toList());
 			Entry<String, Optional<String>> result;
 			if (keyValue.size() == 2)

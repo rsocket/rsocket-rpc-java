@@ -16,8 +16,8 @@ import io.opentracing.SpanContext;
 import io.rsocket.ipc.MetadataEncoder;
 import io.rsocket.ipc.decoders.MetadataWriter;
 import io.rsocket.ipc.mimetype.MimeTypes;
-import io.rsocket.ipc.util.MetadataUtils;
-import io.rsocket.ipc.util.MetadataUtils.DisposableAddList;
+import io.rsocket.ipc.util.IPCUtils;
+import io.rsocket.ipc.util.IPCUtils.DisposableAddList;
 import reactor.core.Disposable;
 
 public class MetadataEncoderLFP implements MetadataEncoder {
@@ -60,7 +60,7 @@ public class MetadataEncoderLFP implements MetadataEncoder {
 	private void writeRoutingInfo(MetadataWriter metadataWriter, String service, String... parts) {
 		metadataWriter.writeString(MimeTypes.MIME_TYPE_SERVICE, service);
 		Stream<String> methodsStream = parts == null ? Stream.empty()
-				: Arrays.asList(parts).stream().filter(MetadataUtils::nonEmpty);
+				: Arrays.asList(parts).stream().filter(IPCUtils::nonEmpty);
 		methodsStream.forEach(v -> {
 			metadataWriter.writeString(MimeTypes.MIME_TYPE_METHOD, v);
 		});

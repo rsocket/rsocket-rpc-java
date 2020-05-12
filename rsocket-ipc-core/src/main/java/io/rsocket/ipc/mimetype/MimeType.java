@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import io.rsocket.ipc.util.MetadataUtils;
+import io.rsocket.ipc.util.IPCUtils;
 import io.rsocket.metadata.WellKnownMimeType;
 
 public interface MimeType {
@@ -25,7 +25,7 @@ public interface MimeType {
 		}
 
 		public Impl(String mimeType) {
-			MetadataUtils.requireNonEmpty(mimeType);
+			IPCUtils.requireNonEmpty(mimeType);
 			this.wellKnownMimeTypeSupplier = new Supplier<WellKnownMimeType>() {
 
 				private Optional<WellKnownMimeType> parsed;
@@ -35,7 +35,7 @@ public interface MimeType {
 					if (parsed == null)
 						synchronized (this) {
 							if (parsed == null)
-								parsed = MetadataUtils.parseWellKnownMimeType(mimeType);
+								parsed = IPCUtils.parseWellKnownMimeType(mimeType);
 						}
 					return parsed.orElse(null);
 				}
@@ -49,7 +49,7 @@ public interface MimeType {
 			if (wkmtOp.isPresent())
 				return wkmtOp.get().getString();
 			// shouldn't happen, but maybe some weird overriding
-			return MetadataUtils.requireNonEmpty(mimeTypeFallback);
+			return IPCUtils.requireNonEmpty(mimeTypeFallback);
 		}
 
 		@Override
