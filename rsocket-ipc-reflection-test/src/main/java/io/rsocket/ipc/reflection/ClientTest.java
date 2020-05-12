@@ -28,13 +28,12 @@ public class ClientTest {
 	public static void main(String[] args) {
 		com.google.gson.Gson gson = new Gson();
 		RSocket rsocket = RSocketConnector.create().connect(TcpClientTransport.create("localhost", 7000)).block();
-		GsonMarshaller marshaller = new GsonMarshaller(gson);
 		BiFunction<Type, ByteBuf, Object> deserializer = (t, bb) -> {
 			return GsonUnmarshaller.create(gson, t, false).apply(bb);
 		};
 		TestServiceChannel client = RSocketIPCClients.create(Mono.just(rsocket), TestServiceChannel.class,
 				new MetadataEncoderLFP(), v -> {
-					ByteBuf bb = marshaller.apply(v);
+					ByteBuf bb = GsonMarshaller.create(gson).apply(v);
 					System.out.println(bb.toString(StandardCharsets.UTF_8));
 					return bb;
 				}, deserializer);
