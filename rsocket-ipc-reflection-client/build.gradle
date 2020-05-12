@@ -2,8 +2,7 @@ description = 'RSocket IPC Reflection Mapping Client Support'
 
 dependencies {
 	api project (':rsocket-ipc-core')
-
-	implementation ':rsocket-ipc-reflection-core'
+	implementation project(":rsocket-ipc-reflection-core")
 	implementation 'org.javassist:javassist:3.27.0-GA'
 	
     testImplementation 'io.opentracing.brave:brave-opentracing'
@@ -13,7 +12,7 @@ dependencies {
 
     testImplementation 'javax.inject:javax.inject'
     testImplementation 'io.projectreactor:reactor-test'
-    testImplementation 'com.google.protobuf:protobuf-java'
+    testImplementation 'com.google.protobuf:prorsocket-ipc-reflection-clienttobuf-java'
     testImplementation 'org.hdrhistogram:HdrHistogram'
     testImplementation 'org.apache.logging.log4j:log4j-api'
     testImplementation 'org.apache.logging.log4j:log4j-core'

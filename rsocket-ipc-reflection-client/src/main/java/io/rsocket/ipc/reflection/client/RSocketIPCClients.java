@@ -31,7 +31,7 @@ import javassist.util.proxy.ProxyFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class RSocketClients {
+public class RSocketIPCClients {
 
 	public static <X> X create(Mono<RSocket> rSocketMono, Class<X> serviceType, MetadataEncoder metadataEncoder,
 			Marshaller<Object> marshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer) {
@@ -88,7 +88,7 @@ public class RSocketClients {
 				Client<Object, ByteBuf> client = Client.service(serviceType.getName()).rsocket(rSocketMono.block())
 						.customMetadataEncoder(metadataEncoder).noMeterRegistry().noTracer().marshall(marshaller)
 						.unmarshall(Bytes.byteBufUnmarshaller());
-				return RSocketClients.invoke(client, route, returnDeserializer, method, args);
+				return RSocketIPCClients.invoke(client, route, returnDeserializer, method, args);
 			}
 		};
 	}

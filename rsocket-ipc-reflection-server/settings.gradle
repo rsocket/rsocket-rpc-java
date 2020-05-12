@@ -1,0 +1,2 @@
+include ":rsocket-ipc-reflection-core"
+project(":rsocket-ipc-reflection-core").projectDir = file("../rsocket-ipc-reflection-core")
