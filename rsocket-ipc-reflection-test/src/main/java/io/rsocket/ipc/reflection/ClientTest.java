@@ -10,6 +10,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import io.netty.buffer.ByteBuf;
 import io.rsocket.RSocket;
@@ -29,8 +30,7 @@ public class ClientTest {
 		RSocket rsocket = RSocketConnector.create().connect(TcpClientTransport.create("localhost", 7000)).block();
 		GsonMarshaller marshaller = new GsonMarshaller(gson);
 		BiFunction<Type, ByteBuf, Object> deserializer = (t, bb) -> {
-			Object result = GsonUnmarshaller.apply(gson, new Type[] { t }, true, bb)[0];
-			return result;
+			return GsonUnmarshaller.create(gson, t, false).apply(bb);
 		};
 		TestServiceChannel client = RSocketIPCClients.create(Mono.just(rsocket), TestServiceChannel.class,
 				new MetadataEncoderLFP(), v -> {

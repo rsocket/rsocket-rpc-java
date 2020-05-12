@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.util.Objects;
+import java.util.function.Function;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -16,48 +17,51 @@ import io.rsocket.ipc.Unmarshaller;
 
 public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 
-	public static Object[] apply(Gson gson, Type[] types, boolean releaseOnParse, ByteBuf byteBuf) {
+	public static <X> GsonUnmarshaller<X> create(Gson gson, TypeToken<X> typeToken, boolean releaseOnParse) {
+		return create(gson, typeToken == null ? null : typeToken.getType(), releaseOnParse);
+	}
+
+	public static <X> GsonUnmarshaller<X> create(Gson gson, Class<X> classType, boolean releaseOnParse) {
+		return create(gson, (Type) classType, releaseOnParse);
+	}
+
+	public static <X> GsonUnmarshaller<X> create(Gson gson, Type type, boolean releaseOnParse) {
+		Objects.requireNonNull(gson);
+		Objects.requireNonNull(type);
+		return new GsonUnmarshaller<>(bb -> parseUnchecked(gson, type, bb, releaseOnParse));
+	}
+
+	public static GsonUnmarshaller<Object[]> create(Gson gson, Type[] types, boolean releaseOnParse) {
+		Objects.requireNonNull(gson);
 		Objects.requireNonNull(types);
-		if (types == null || types.length == 0)
-			throw new IllegalArgumentException("unmarshall types are required");
-		if (types.length == 1)
-			return new Object[] { new GsonUnmarshaller<>(gson, types[0], releaseOnParse).apply(byteBuf) };
-		JsonArray jarr = new GsonUnmarshaller<>(gson, JsonArray.class, releaseOnParse).apply(byteBuf);
-		Object[] result = new Object[jarr.size()];
-		for (int i = 0; i < jarr.size(); i++) {
-			Type type = types == null || types.length <= i ? null : types[i];
-			if (type == null)
-				type = Object.class;
-			result[i] = gson.fromJson(jarr.get(i), type);
-		}
-		return result;
-
-	};
-
-	public static Object apply(Gson gson, Type type, boolean releaseOnParse, ByteBuf byteBuf) {
-		return new GsonUnmarshaller<>(gson, type, releaseOnParse).apply(byteBuf);
+		return new GsonUnmarshaller<>(bb -> {
+			JsonArray jarr = parseUnchecked(gson, JsonArray.class, bb, releaseOnParse);
+			Object[] result = new Object[jarr.size()];
+			for (int i = 0; i < jarr.size(); i++) {
+				Type type = types == null || types.length <= i ? null : types[i];
+				if (type == null)
+					type = Object.class;
+				result[i] = gson.fromJson(jarr.get(i), type);
+			}
+			return result;
+		});
 	}
 
-	private Gson gson;
-	private Type type;
-	private boolean releaseOnParse;
+	private final Function<ByteBuf, X> parser;
 
-	public GsonUnmarshaller(Gson gson, Class<X> classType, boolean releaseOnParse) {
-		this(gson, (Type) classType, releaseOnParse);
-	}
-
-	public GsonUnmarshaller(Gson gson, TypeToken<X> typeToken, boolean releaseOnParse) {
-		this(gson, typeToken == null ? null : typeToken.getType(), releaseOnParse);
-	}
-
-	protected GsonUnmarshaller(Gson gson, Type type, boolean releaseOnParse) {
-		this.gson = Objects.requireNonNull(gson);
-		this.type = Objects.requireNonNull(type);
-		this.releaseOnParse = releaseOnParse;
+	protected GsonUnmarshaller(Function<ByteBuf, X> parser) {
+		this.parser = Objects.requireNonNull(parser);
 	}
 
 	@Override
 	public X apply(ByteBuf byteBuf) {
+		return parser.apply(byteBuf);
+	}
+
+	private static <Y> Y parseUnchecked(Gson gson, Type type, ByteBuf byteBuf, boolean releaseOnParse) {
+		Objects.requireNonNull(gson);
+		Objects.requireNonNull(byteBuf);
+		type = type != null ? type : Object.class;
 		try (InputStream is = new ByteBufInputStream(byteBuf, releaseOnParse);
 				InputStreamReader reader = new InputStreamReader(is);) {
 			return gson.fromJson(reader, type);
@@ -66,10 +70,6 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 					? java.lang.RuntimeException.class.cast(e)
 					: new java.lang.RuntimeException(e);
 		}
-	}
-
-	public Gson getGson() {
-		return gson;
 	}
 
 }
