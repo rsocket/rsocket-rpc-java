@@ -11,6 +11,7 @@ import org.reactivestreams.Publisher;
 
 import io.rsocket.ipc.util.IPCUtils;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
 public interface PublisherConverter<X> {
@@ -51,7 +52,7 @@ public interface PublisherConverter<X> {
 			public Stream<?> fromPublisher(Publisher<?> publisher) {
 				if (publisher == null)
 					return Stream.empty();
-				return Flux.from(publisher).toStream();
+				return Flux.from(publisher).subscribeOn(Schedulers.elastic()).toStream();
 			}
 
 			@Override
@@ -77,7 +78,7 @@ public interface PublisherConverter<X> {
 			public Iterator<?> fromPublisher(Publisher<?> publisher) {
 				if (publisher == null)
 					return Collections.emptyIterator();
-				return Flux.from(publisher).toStream().iterator();
+				return Flux.from(publisher).subscribeOn(Schedulers.elastic()).toStream().iterator();
 			}
 
 			@Override
@@ -105,7 +106,8 @@ public interface PublisherConverter<X> {
 					return Collections.emptyList();
 				Flux<?> cachedFlux = Flux.from(publisher).cache();
 				Iterable<?> ible = () -> {
-					Iterator<Object> iter = (Iterator<Object>) cachedFlux.toStream().iterator();
+					Iterator<Object> iter = (Iterator<Object>) cachedFlux.subscribeOn(Schedulers.elastic()).toStream()
+							.iterator();
 					return iter;
 				};
 				return ible != null ? ible : Collections.emptyList();
