@@ -1,4 +1,4 @@
-package io.rsocket.ipc.reflection;
+package io.rsocket.ipc.reflection.core;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
