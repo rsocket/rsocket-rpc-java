@@ -61,6 +61,8 @@ public class RSocketIPCClients {
 
 			@Override
 			public Object invoke(Object self, Method thisMethod, Method proceed, Object[] args) throws Throwable {
+				if (thisMethod.isDefault() && proceed != null)
+					return proceed.invoke(self, args);
 				Optional<IPCInvoker> ipcInvokerOp = ipcInvokerCache.computeIfAbsent(thisMethod, nil -> {
 					Entry<String, Method> entry = mappedMethods.entrySet().stream()
 							.filter(ent -> MethodMapUtils.compatibleMethods(thisMethod, ent.getValue())).findFirst()
