@@ -11,40 +11,58 @@ import reactor.core.publisher.Mono;
 
 public interface TestServiceChannel {
 
-	default Flux<String> channel(Flux<Date> flux) {
-		return flux.map(d -> "the date is:" + d);
-	}
+	Flux<String> channel(Flux<Date> flux);
 
-	default void msg(String msg) {
-		System.out.println("msg:" + msg);
-	}
+	void msg(String msg);
 
-	default Stream<String> stream(String msg, Date date) {
-		return IntStream.range(0, 10).mapToObj(v -> v).map(v -> v + "- " + msg + " - " + date);
-	}
+	Stream<String> stream(String msg, Date date);
 
-	default int add(int... args) {
-		int res = 0;
-		for (int arg : args)
-			res += arg;
-		return res;
-	}
+	int add(int... args);
 
-	default Flux<Integer> intFlux(int... args) {
-		List<Integer> argList = new ArrayList<>();
-		for (int val : args)
-			argList.add(val);
-		return Flux.fromIterable(argList);
-	}
+	Flux<Integer> intFlux(int... args);
 
-	default Mono<Integer> addMono(int... args) {
-		int res = 0;
-		for (int arg : args)
-			res += arg;
-		return Mono.just(res);
-	}
+	Mono<Integer> addMono(int... args);
 
-	default Stream<String> cool(List<Date> vals, String msg) {
-		return vals.stream().map(v -> msg + " " + v);
+	Stream<String> cool(List<Date> vals, String msg);
+
+	public static class Impl implements TestServiceChannel {
+
+		public Flux<String> channel(Flux<Date> flux) {
+			return flux.map(d -> "the date is:" + d);
+		}
+
+		public void msg(String msg) {
+			System.out.println("msg:" + msg);
+		}
+
+		public Stream<String> stream(String msg, Date date) {
+			return IntStream.range(0, 10).mapToObj(v -> v).map(v -> v + "- " + msg + " - " + date);
+		}
+
+		public int add(int... args) {
+			int res = 0;
+			for (int arg : args)
+				res += arg;
+			return res;
+		}
+
+		public Flux<Integer> intFlux(int... args) {
+			List<Integer> argList = new ArrayList<>();
+			for (int val : args)
+				argList.add(val);
+			return Flux.fromIterable(argList);
+		}
+
+		public Mono<Integer> addMono(int... args) {
+			int res = 0;
+			for (int arg : args)
+				res += arg;
+			return Mono.just(res);
+		}
+
+		public Stream<String> cool(List<Date> vals, String msg) {
+			return vals.stream().map(v -> msg + " " + v);
+		}
+
 	}
 }

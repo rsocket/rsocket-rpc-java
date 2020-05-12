@@ -131,11 +131,10 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 		PublisherConverter returnPublisherConverter = PublisherConverters.lookup(method.getReturnType()).get();
 		Type[] typeArguments = new Type[] { requestChannelParameterType.get() };
 		serviceBuilder.requestChannel(route, (first, publisher, md) -> {
-			Flux<Object> deserializedPublisher = Flux.from(publisher).map(bb -> {
-				Object[] payload = argumentDeserializer.apply(typeArguments, bb, md);
-				return payload[0];
-			});
-			Object result = invoke(service, method, new Object[] { deserializedPublisher });
+			Flux<Object[]> argArrayPublisher = Flux.from(publisher)
+					.map(bb -> argumentDeserializer.apply(typeArguments, bb, md));
+			Flux<Object> objPublisher = argArrayPublisher.map(arr -> arr[0]);
+			Object result = invoke(service, method, new Object[] { objPublisher });
 			return Flux.from(returnPublisherConverter.toPublisher(result));
 		});
 		return true;

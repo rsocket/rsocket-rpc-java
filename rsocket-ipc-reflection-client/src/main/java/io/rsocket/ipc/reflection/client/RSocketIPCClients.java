@@ -35,9 +35,9 @@ import reactor.core.publisher.Mono;
 public class RSocketIPCClients {
 
 	public static <X> X create(Mono<RSocket> rSocketMono, Class<X> serviceType, MetadataEncoder metadataEncoder,
-			Marshaller<Object> marshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer) {
+			Marshaller<Object[]> argumentMarshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer) {
 		try {
-			return createInternal(rSocketMono, serviceType, metadataEncoder, marshaller, returnDeserializer);
+			return createInternal(rSocketMono, serviceType, metadataEncoder, argumentMarshaller, returnDeserializer);
 		} catch (NoSuchMethodException | IllegalArgumentException | InstantiationException | IllegalAccessException
 				| InvocationTargetException e) {
 			throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
@@ -48,12 +48,12 @@ public class RSocketIPCClients {
 
 	@SuppressWarnings("unchecked")
 	protected static <X> X createInternal(Mono<RSocket> rSocketMono, Class<X> serviceType,
-			MetadataEncoder metadataEncoder, Marshaller<Object> marshaller,
+			MetadataEncoder metadataEncoder, Marshaller<Object[]> argumentMarshaller,
 			BiFunction<Type, ByteBuf, Object> returnDeserializer) throws NoSuchMethodException,
 			IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException {
 		Objects.requireNonNull(rSocketMono);
 		Objects.requireNonNull(serviceType);
-		Objects.requireNonNull(marshaller);
+		Objects.requireNonNull(argumentMarshaller);
 		Objects.requireNonNull(returnDeserializer);
 		Map<String, Method> mappedMethods = MethodMapUtils.getMappedMethods(serviceType, false);
 		Map<Method, Optional<IPCInvoker>> ipcInvokerCache = new ConcurrentHashMap<>();
@@ -69,8 +69,8 @@ public class RSocketIPCClients {
 							.orElse(null);
 					if (entry == null)
 						return Optional.empty();
-					return Optional.of(createIPCInvoker(serviceType, entry.getKey(), metadataEncoder, marshaller,
-							returnDeserializer, thisMethod));
+					return Optional.of(createIPCInvoker(serviceType, entry.getKey(), metadataEncoder,
+							argumentMarshaller, returnDeserializer, thisMethod));
 				});
 				if (!ipcInvokerOp.isPresent())
 					throw new NoSuchMethodException(String.format(
@@ -83,18 +83,21 @@ public class RSocketIPCClients {
 
 	@SuppressWarnings("unchecked")
 	private static <X> IPCInvoker createIPCInvoker(Class<X> serviceType, String route, MetadataEncoder metadataEncoder,
-			Marshaller<Object> marshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer, Method method) {
-		Function<Mono<RSocket>, Client<Object, ByteBuf>> clientSupplier = rSocketMono -> {
-			Client<Object, ByteBuf> client = Client.service(serviceType.getName()).rsocket(rSocketMono.block())
-					.customMetadataEncoder(metadataEncoder).noMeterRegistry().noTracer().marshall(marshaller)
+			Marshaller<Object[]> argumentMarshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer,
+			Method method) {
+		Function<Mono<RSocket>, Client<Object[], ByteBuf>> clientSupplier = rSocketMono -> {
+			Client<Object[], ByteBuf> client = Client.service(serviceType.getName()).rsocket(rSocketMono.block())
+					.customMetadataEncoder(metadataEncoder).noMeterRegistry().noTracer().marshall(argumentMarshaller)
 					.unmarshall(Bytes.byteBufUnmarshaller());
 			return client;
 		};
 		Optional<PublisherConverter<?>> returnPublisherConverterOp = PublisherConverters.lookup(method.getReturnType());
 		if (MethodMapUtils.getRequestChannelParameterType(method).isPresent()) {
 			return (rSocketMono, args) -> {
+				Publisher<Object> objPublisher = (Publisher<Object>) args[0];
+				Flux<Object[]> argArrayPublisher = Flux.from(objPublisher).map(v -> new Object[] { v });
 				Flux<ByteBuf> responsePublisher = clientSupplier.apply(rSocketMono).requestChannel(route)
-						.apply((Publisher<Object>) args[0]);
+						.apply(argArrayPublisher);
 				return returnFromResponsePublisher(method, returnDeserializer, returnPublisherConverterOp.get(),
 						responsePublisher);
 			};

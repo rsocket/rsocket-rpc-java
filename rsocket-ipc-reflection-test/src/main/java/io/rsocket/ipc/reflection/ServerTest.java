@@ -20,8 +20,7 @@ public class ServerTest {
 
 	public static void main(String[] args) throws InterruptedException {
 		Class<TestServiceChannel> classType = TestServiceChannel.class;
-		TestServiceChannel service = new TestServiceChannel() {
-		};
+		TestServiceChannel service = new TestServiceChannel.Impl();
 		MetadataDecoderLFP decoder = new MetadataDecoderLFP();
 		RequestHandlingRSocketReflection requestHandler;
 		{
@@ -35,7 +34,7 @@ public class ServerTest {
 		boolean releaseOnParse = true;
 		Gson gson = new Gson();
 		requestHandler.register(classType, service, new GsonMarshaller(gson), (types, bb, md) -> {
-			return GsonUnmarshaller.create(gson, types, true, true).apply(bb);
+			return GsonUnmarshaller.create(gson, types, true).apply(bb);
 		});
 		System.out.println("started");
 		while (true) {
