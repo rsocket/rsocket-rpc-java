@@ -71,7 +71,7 @@ public interface PublisherConverter<X> {
 
 			@Override
 			protected Publisher<?> toPublisherInternal(Iterator<?> input) {
-				return Flux.fromStream(IPCUtils.stream(input));
+				return Flux.fromStream(IPCUtils.stream(input)).subscribeOn(Schedulers.elastic());
 			}
 
 			@Override
@@ -97,7 +97,7 @@ public interface PublisherConverter<X> {
 
 			@Override
 			protected Publisher<?> toPublisherInternal(Iterable<?> input) {
-				return Flux.fromStream(IPCUtils.stream(input.iterator()));
+				return Flux.fromStream(IPCUtils.stream(input.iterator())).subscribeOn(Schedulers.elastic());
 			}
 
 			@Override
@@ -110,7 +110,7 @@ public interface PublisherConverter<X> {
 							.iterator();
 					return iter;
 				};
-				return ible != null ? ible : Collections.emptyList();
+				return ible;
 			}
 
 			@Override
