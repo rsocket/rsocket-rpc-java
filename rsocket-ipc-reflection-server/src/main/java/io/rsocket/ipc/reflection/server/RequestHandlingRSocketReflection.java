@@ -95,7 +95,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 			H<Object, ByteBuf> serviceBuilder) {
 		if (registerRequestChannel(service, route, argumentDeserializer, method, serviceBuilder))
 			return;
-		if (method.getReturnType().equals(Void.TYPE)) {
+		if (MethodMapUtils.isFireAndForget(method)) {
 			serviceBuilder.fireAndForget(route, (data, md) -> {
 				invoke(service, method, argumentDeserializer.apply(method.getGenericParameterTypes(), data, md));
 				return Mono.empty();

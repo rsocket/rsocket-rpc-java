@@ -16,7 +16,7 @@ include 'rsocket-ipc-gson'
 include 'rsocket-ipc-reflection-core'
 include 'rsocket-ipc-reflection-client'
 include 'rsocket-ipc-reflection-server'
-
+include 'rsocket-ipc-reflection-test'
 
 gradleEnterprise {
     buildScan {

@@ -133,21 +133,8 @@ public interface PublisherConverter<X> {
 		return getConvertType().isAssignableFrom(classType);
 	}
 
-	default Optional<Type> getTypeArgument(Type type) {
-		if (type == null)
-			return Optional.empty();
-		if (type instanceof ParameterizedType) {
-			ParameterizedType pt = (ParameterizedType) type;
-			Type[] actualTypeArguments = pt.getActualTypeArguments();
-			if (actualTypeArguments != null && actualTypeArguments.length == 1)
-				return Optional.of(actualTypeArguments[0]);
-		}
-		if (!(type instanceof Class))
-			return Optional.empty();
-		Class<?> superClass = ((Class<?>) type).getSuperclass();
-		if (superClass != null && !this.getConvertType().isAssignableFrom(superClass))
-			return Optional.empty();
-		return getTypeArgument(superClass);
+	default Optional<Type> getPublisherTypeArgument(Type type) {
+		return MethodMapUtils.getPublisherTypeArgument(this.getConvertType(), type);
 	}
 
 	static abstract class Abs<X> implements PublisherConverter<X> {

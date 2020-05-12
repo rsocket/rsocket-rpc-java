@@ -1,6 +1,7 @@
 package io.rsocket.ipc.reflection.core;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import org.reflections8.ReflectionUtils;
 
 import io.rsocket.ipc.util.IPCUtils;
 import javassist.Modifier;
+import reactor.core.publisher.Mono;
 
 public class MethodMapUtils {
 	private static final Class<?> THIS_CLASS = new Object() {
@@ -160,6 +162,8 @@ public class MethodMapUtils {
 	}
 
 	public static Optional<Type> getRequestChannelParameterType(Method method) {
+		if (method == null)
+			return Optional.empty();
 		if (method.getParameterCount() != 1)
 			return Optional.empty();
 		Optional<PublisherConverter<?>> payloadConverter = PublisherConverters.lookup(method.getParameterTypes()[0]);
@@ -168,10 +172,46 @@ public class MethodMapUtils {
 		if (!PublisherConverters.lookup(method.getReturnType()).isPresent())
 			return Optional.empty();
 		Type type = method.getGenericParameterTypes()[0];
-		Optional<Type> typeArgument = payloadConverter.get().getTypeArgument(type);
+		Optional<Type> typeArgument = payloadConverter.get().getPublisherTypeArgument(type);
 		if (!typeArgument.isPresent())
 			return Optional.empty();
 		return Optional.of(typeArgument.get());
+	}
+
+	public static boolean isFireAndForget(Method method) {
+		if (method == null)
+			return false;
+		if (method.getReturnType().equals(Void.TYPE))
+			return true;
+		if (!Mono.class.isAssignableFrom(method.getReturnType()))
+			return false;
+		Type typeArgument = getPublisherTypeArgument(Mono.class, method.getGenericReturnType()).orElse(null);
+		if (typeArgument == null)
+			return false;
+		if (typeArgument.equals(Void.TYPE))
+			return true;
+		if (typeArgument.equals(Void.class))
+			return true;
+		if (typeArgument.equals(void.class))
+			return true;
+		return false;
+	}
+
+	public static Optional<Type> getPublisherTypeArgument(Class<?> superClassLimit, Type type) {
+		if (type == null)
+			return Optional.empty();
+		if (type instanceof ParameterizedType) {
+			ParameterizedType pt = (ParameterizedType) type;
+			Type[] actualTypeArguments = pt.getActualTypeArguments();
+			if (actualTypeArguments != null && actualTypeArguments.length == 1)
+				return Optional.of(actualTypeArguments[0]);
+		}
+		if (!(type instanceof Class))
+			return Optional.empty();
+		Class<?> superClass = ((Class<?>) type).getSuperclass();
+		if (superClass != null && superClassLimit != null && !superClassLimit.isAssignableFrom(superClass))
+			return Optional.empty();
+		return getPublisherTypeArgument(superClassLimit, superClass);
 	}
 
 }
