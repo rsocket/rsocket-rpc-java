@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import org.reflections8.ReflectionUtils;
@@ -26,7 +27,7 @@ import javassist.Modifier;
 public class MethodMapUtils {
 	private static final Class<?> THIS_CLASS = new Object() {
 	}.getClass().getEnclosingClass();
-	private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(THIS_CLASS);
+	private static final Logger logger = java.util.logging.Logger.getLogger(THIS_CLASS.getName());
 
 	private static final Map<Class<?>, Class<?>> PRIMITIVES_TO_WRAPPERS = getPrimitivesToWrappers();
 
@@ -81,7 +82,7 @@ public class MethodMapUtils {
 			String key = ent.getKey();
 			List<Method> methods = ent.getValue();
 			if (methods.size() > 1) {
-				logger.warn("multiple methods match signature, skipping:{}", key);
+				logger.warning(String.format("multiple methods match signature, skipping:%s", key));
 				continue;
 			}
 			result.put(key, methods.get(0));

@@ -10,6 +10,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import io.netty.buffer.ByteBuf;
 import io.opentracing.Tracer;
@@ -30,7 +32,7 @@ import reactor.core.publisher.Mono;
 public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 	private static final Class<?> THIS_CLASS = new Object() {
 	}.getClass().getEnclosingClass();
-	private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(THIS_CLASS);
+	private static final Logger logger = java.util.logging.Logger.getLogger(THIS_CLASS.getName());
 
 	public RequestHandlingRSocketReflection() {
 		super();
@@ -80,7 +82,8 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 				.marshall(resultMarshaller).unmarshall(Bytes.byteBufUnmarshaller());
 		methodMapping.entrySet().forEach(ent -> {
 			String route = ent.getKey();
-			logger.debug("registering request handler. serviceName:{} route:{}", serviceName, route);
+			logger.log(Level.FINE,
+					String.format("registering request handler. serviceName:%s route:%s", serviceName, route));
 			register(service, route, argumentDeserializer, ent.getValue(), serviceBuilder);
 		});
 		this.withEndpoint(serviceBuilder.toIPCRSocket());

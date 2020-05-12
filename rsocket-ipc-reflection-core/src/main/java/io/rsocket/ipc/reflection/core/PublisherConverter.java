@@ -12,7 +12,7 @@ import org.reactivestreams.Publisher;
 import io.rsocket.ipc.util.IPCUtils;
 import reactor.core.publisher.Flux;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public interface PublisherConverter<X> {
 
 	static PublisherConverter<Publisher<?>> direct() {
@@ -30,7 +30,7 @@ public interface PublisherConverter<X> {
 
 			@Override
 			public Class<? extends Publisher<?>> getConvertType() {
-				return (Class<? extends Publisher<?>>) Publisher.class;
+				return (Class) Publisher.class;
 			}
 
 			public int priority() {
@@ -56,7 +56,7 @@ public interface PublisherConverter<X> {
 
 			@Override
 			public Class<? extends Stream<?>> getConvertType() {
-				return (Class<? extends Stream<?>>) Stream.class;
+				return (Class) Stream.class;
 			}
 
 			public int priority() {
@@ -82,7 +82,7 @@ public interface PublisherConverter<X> {
 
 			@Override
 			public Class<? extends Iterator<?>> getConvertType() {
-				return (Class<? extends Iterator<?>>) Iterator.class;
+				return (Class) Iterator.class;
 			}
 
 			public int priority() {
@@ -113,7 +113,7 @@ public interface PublisherConverter<X> {
 
 			@Override
 			public Class<? extends Iterable<?>> getConvertType() {
-				return (Class<? extends Iterable<?>>) Iterable.class;
+				return (Class) Iterable.class;
 			}
 
 		};
