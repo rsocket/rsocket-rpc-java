@@ -31,20 +31,30 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 		return new GsonUnmarshaller<>(bb -> parseUnchecked(gson, type, bb, releaseOnParse));
 	}
 
-	public static GsonUnmarshaller<Object[]> create(Gson gson, Type[] types, boolean releaseOnParse) {
+	public static GsonUnmarshaller<Object[]> create(Gson gson, Type[] types, boolean directOnSingleType,
+			boolean releaseOnParse) {
 		Objects.requireNonNull(gson);
 		Objects.requireNonNull(types);
-		return new GsonUnmarshaller<>(bb -> {
-			JsonArray jarr = parseUnchecked(gson, JsonArray.class, bb, releaseOnParse);
-			Object[] result = new Object[jarr.size()];
-			for (int i = 0; i < jarr.size(); i++) {
-				Type type = types == null || types.length <= i ? null : types[i];
-				if (type == null)
-					type = Object.class;
-				result[i] = gson.fromJson(jarr.get(i), type);
-			}
-			return result;
-		});
+		if (types.length == 0)
+			throw new IllegalArgumentException("types are required");
+		for (Type type : types)
+			Objects.requireNonNull(type);
+		Function<ByteBuf, Object[]> parser;
+		if (directOnSingleType && types.length == 1)
+			parser = bb -> parseUnchecked(gson, types[0], bb, releaseOnParse);
+		else
+			parser = bb -> {
+				JsonArray jarr = parseUnchecked(gson, JsonArray.class, bb, releaseOnParse);
+				Object[] result = new Object[jarr.size()];
+				for (int i = 0; i < jarr.size(); i++) {
+					Type type = types == null || types.length <= i ? null : types[i];
+					if (type == null)
+						type = Object.class;
+					result[i] = gson.fromJson(jarr.get(i), type);
+				}
+				return result;
+			};
+		return new GsonUnmarshaller<>(parser);
 	}
 
 	private final Function<ByteBuf, X> parser;
