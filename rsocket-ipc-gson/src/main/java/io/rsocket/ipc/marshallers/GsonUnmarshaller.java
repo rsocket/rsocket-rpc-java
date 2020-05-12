@@ -18,9 +18,9 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 
 	public static Object[] apply(Gson gson, Type[] types, boolean releaseOnParse, ByteBuf byteBuf) {
 		Objects.requireNonNull(types);
-		if (types.length == 0)
+		if (types == null || types.length == 0)
 			throw new IllegalArgumentException("unmarshall types are required");
-		if (types.length == 1 && !isArray(types[0]))
+		if (types.length == 1)
 			return new Object[] { new GsonUnmarshaller<>(gson, types[0], releaseOnParse).apply(byteBuf) };
 		JsonArray jarr = new GsonUnmarshaller<>(gson, JsonArray.class, releaseOnParse).apply(byteBuf);
 		Object[] result = new Object[jarr.size()];
@@ -33,6 +33,10 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 		return result;
 
 	};
+
+	public static Object apply(Gson gson, Type type, boolean releaseOnParse, ByteBuf byteBuf) {
+		return new GsonUnmarshaller<>(gson, type, releaseOnParse).apply(byteBuf);
+	}
 
 	private Gson gson;
 	private Type type;
@@ -68,10 +72,4 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 		return gson;
 	}
 
-	private static boolean isArray(Type type) {
-		if (!(type instanceof Class))
-			return false;
-		boolean result = ((Class<?>) type).isArray();
-		return result;
-	}
 }
