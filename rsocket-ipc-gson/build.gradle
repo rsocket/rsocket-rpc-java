@@ -3,7 +3,7 @@ description = 'RSocket IPC Gson Support'
 dependencies {
     api project (':rsocket-ipc-core')
     
-    implementation 'com.google.code.gson:gson:2.8.6'
+    compile 'com.google.code.gson:gson:2.8.6'
    
     testImplementation 'io.opentracing.brave:brave-opentracing'
     testImplementation 'junit:junit'
