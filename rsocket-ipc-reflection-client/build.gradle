@@ -1,8 +1,9 @@
 description = 'RSocket IPC Reflection Mapping Client Support'
 
 dependencies {
-    api project (':rsocket-ipc-reflection-core')
+	api project (':rsocket-ipc-core')
 
+	implementation ':rsocket-ipc-reflection-core'
 	implementation 'org.javassist:javassist:3.27.0-GA'
 	
     testImplementation 'io.opentracing.brave:brave-opentracing'

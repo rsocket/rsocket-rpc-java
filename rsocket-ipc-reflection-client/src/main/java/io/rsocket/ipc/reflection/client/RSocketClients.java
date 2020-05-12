@@ -21,7 +21,7 @@ import io.netty.buffer.ByteBuf;
 import io.rsocket.RSocket;
 import io.rsocket.ipc.Client;
 import io.rsocket.ipc.Marshaller;
-import io.rsocket.ipc.encoders.MetadataEncoderLFP;
+import io.rsocket.ipc.MetadataEncoder;
 import io.rsocket.ipc.marshallers.Bytes;
 import io.rsocket.ipc.reflection.core.MethodMapUtils;
 import io.rsocket.ipc.reflection.core.PublisherConverter;
@@ -31,12 +31,12 @@ import javassist.util.proxy.ProxyFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class RSocketIPCClients {
+public class RSocketClients {
 
-	public static <X> X create(Mono<RSocket> rSocketMono, Class<X> serviceType, Marshaller<Object> marshaller,
-			BiFunction<Type, ByteBuf, Object> returnDeserializer) {
+	public static <X> X create(Mono<RSocket> rSocketMono, Class<X> serviceType, MetadataEncoder metadataEncoder,
+			Marshaller<Object> marshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer) {
 		try {
-			return createInternal(rSocketMono, serviceType, marshaller, returnDeserializer);
+			return createInternal(rSocketMono, serviceType, metadataEncoder, marshaller, returnDeserializer);
 		} catch (NoSuchMethodException | IllegalArgumentException | InstantiationException | IllegalAccessException
 				| InvocationTargetException e) {
 			throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
@@ -47,9 +47,9 @@ public class RSocketIPCClients {
 
 	@SuppressWarnings("unchecked")
 	protected static <X> X createInternal(Mono<RSocket> rSocketMono, Class<X> serviceType,
-			Marshaller<Object> marshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer)
-			throws NoSuchMethodException, IllegalArgumentException, InstantiationException, IllegalAccessException,
-			InvocationTargetException {
+			MetadataEncoder metadataEncoder, Marshaller<Object> marshaller,
+			BiFunction<Type, ByteBuf, Object> returnDeserializer) throws NoSuchMethodException,
+			IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException {
 		Objects.requireNonNull(rSocketMono);
 		Objects.requireNonNull(serviceType);
 		Objects.requireNonNull(marshaller);
@@ -66,8 +66,8 @@ public class RSocketIPCClients {
 							.orElse(null);
 					if (entry == null)
 						return Optional.empty();
-					return Optional.of(createMethodHandler(rSocketMono, serviceType, entry.getKey(), marshaller,
-							returnDeserializer, thisMethod));
+					return Optional.of(createMethodHandler(rSocketMono, serviceType, entry.getKey(), metadataEncoder,
+							marshaller, returnDeserializer, thisMethod));
 				});
 				if (!mhOp.isPresent())
 					throw new NoSuchMethodException(String.format(
@@ -79,15 +79,16 @@ public class RSocketIPCClients {
 	}
 
 	private static <X> MethodHandler createMethodHandler(Mono<RSocket> rSocketMono, Class<X> serviceType, String route,
-			Marshaller<Object> marshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer, Method method) {
+			MetadataEncoder metadataEncoder, Marshaller<Object> marshaller,
+			BiFunction<Type, ByteBuf, Object> returnDeserializer, Method method) {
 		return new MethodHandler() {
 
 			@Override
 			public Object invoke(Object self, Method thisMethod, Method proceed, Object[] args) throws Throwable {
 				Client<Object, ByteBuf> client = Client.service(serviceType.getName()).rsocket(rSocketMono.block())
-						.customMetadataEncoder(new MetadataEncoderLFP()).noMeterRegistry().noTracer()
-						.marshall(marshaller).unmarshall(Bytes.byteBufUnmarshaller());
-				return RSocketIPCClients.invoke(client, route, returnDeserializer, method, args);
+						.customMetadataEncoder(metadataEncoder).noMeterRegistry().noTracer().marshall(marshaller)
+						.unmarshall(Bytes.byteBufUnmarshaller());
+				return RSocketClients.invoke(client, route, returnDeserializer, method, args);
 			}
 		};
 	}
