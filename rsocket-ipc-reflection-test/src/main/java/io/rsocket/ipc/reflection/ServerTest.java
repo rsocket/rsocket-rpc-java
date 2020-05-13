@@ -12,6 +12,7 @@ import io.rsocket.ipc.marshallers.GsonUnmarshaller;
 import io.rsocket.ipc.reflection.server.RequestHandlingRSocketReflection;
 import io.rsocket.transport.netty.server.TcpServerTransport;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 public class ServerTest {
 	private static final Class<?> THIS_CLASS = new Object() {
@@ -24,7 +25,7 @@ public class ServerTest {
 		MetadataDecoderLFP decoder = new MetadataDecoderLFP();
 		RequestHandlingRSocketReflection requestHandler;
 		{
-			requestHandler = new RequestHandlingRSocketReflection(new MetadataDecoderLFP());
+			requestHandler = new RequestHandlingRSocketReflection(Schedulers.elastic(), new MetadataDecoderLFP());
 			SocketAcceptor socketAcceptor = (setup, client) -> Mono.just(requestHandler);
 			RSocketServer.create(socketAcceptor).interceptors(ir -> {
 			}).errorConsumer(t -> {
