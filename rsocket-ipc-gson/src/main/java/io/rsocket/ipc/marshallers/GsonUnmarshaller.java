@@ -67,13 +67,15 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 		Objects.requireNonNull(gson);
 		Objects.requireNonNull(byteBuf);
 		type = type != null ? type : Object.class;
-		try (InputStream is = new ByteBufInputStream(byteBuf, releaseOnParse);
-				InputStreamReader reader = new InputStreamReader(is);) {
+		try (InputStream is = new ByteBufInputStream(byteBuf); InputStreamReader reader = new InputStreamReader(is);) {
 			return gson.fromJson(reader, type);
 		} catch (IOException e) {
 			throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
 					? java.lang.RuntimeException.class.cast(e)
 					: new java.lang.RuntimeException(e);
+		} finally {
+			if (releaseOnParse && byteBuf.refCnt() > 0)
+				byteBuf.release();
 		}
 	}
 
