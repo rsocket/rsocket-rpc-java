@@ -10,8 +10,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.reactivestreams.Publisher;
 
 import io.netty.buffer.ByteBuf;
 import io.opentracing.Tracer;
@@ -28,22 +31,27 @@ import io.rsocket.ipc.reflection.core.PublisherConverters;
 import io.rsocket.ipc.util.TriFunction;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
 public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 	private static final Class<?> THIS_CLASS = new Object() {
 	}.getClass().getEnclosingClass();
 	private static final Logger logger = java.util.logging.Logger.getLogger(THIS_CLASS.getName());
+	private final Scheduler subscribeOnScheduler;
 
-	public RequestHandlingRSocketReflection() {
+	public RequestHandlingRSocketReflection(Scheduler subscribeOnScheduler) {
 		super();
+		this.subscribeOnScheduler = subscribeOnScheduler;
 	}
 
-	public RequestHandlingRSocketReflection(MetadataDecoder decoder) {
+	public RequestHandlingRSocketReflection(Scheduler subscribeOnScheduler, MetadataDecoder decoder) {
 		super(decoder);
+		this.subscribeOnScheduler = subscribeOnScheduler;
 	}
 
-	public RequestHandlingRSocketReflection(Tracer tracer) {
+	public RequestHandlingRSocketReflection(Scheduler subscribeOnScheduler, Tracer tracer) {
 		super(tracer);
+		this.subscribeOnScheduler = subscribeOnScheduler;
 	}
 
 	public <S> void register(Class<S> serviceType, S service, Marshaller<Object> resultMarshaller,
@@ -89,19 +97,24 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 		this.withEndpoint(serviceBuilder.toIPCRSocket());
 	}
 
+	protected <X> Mono<X> toMono(Supplier<X> object) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private static <S> void register(S service, String route,
+	private <S> void register(S service, String route,
 			TriFunction<Type[], ByteBuf, ByteBuf, Object[]> argumentDeserializer, Method method,
 			H<Object, ByteBuf> serviceBuilder) {
 		if (registerRequestChannel(service, route, argumentDeserializer, method, serviceBuilder))
 			return;
 		if (MethodMapUtils.isFireAndForget(method)) {
 			serviceBuilder.fireAndForget(route, (data, md) -> {
-				Mono<Optional<Void>> mono = Mono.fromSupplier(() -> {
+				Mono<Mono<Void>> mono = asMono(() -> {
 					invoke(service, method, argumentDeserializer.apply(method.getGenericParameterTypes(), data, md));
-					return Optional.empty();
+					return Mono.empty();
 				});
-				return mono.filter(Optional::isPresent).map(Optional::get);
+				return mono.flatMap(v -> v);
 			});
 			return;
 		}
@@ -109,7 +122,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 				.map(v -> v);
 		if (returnPublisherConverter.isPresent() && !Mono.class.isAssignableFrom(method.getReturnType())) {
 			serviceBuilder.requestStream(route, (data, md) -> {
-				return Flux.defer(() -> {
+				return asFlux(() -> {
 					Object result = invoke(service, method,
 							argumentDeserializer.apply(method.getGenericParameterTypes(), data, md));
 					return returnPublisherConverter.get().toPublisher(result);
@@ -118,7 +131,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 			return;
 		}
 		serviceBuilder.requestResponse(route, (data, md) -> {
-			Mono<Mono<Object>> wrapped = Mono.fromSupplier(() -> {
+			Mono<Mono<Object>> wrapped = asMono(() -> {
 				Object result = invoke(service, method,
 						argumentDeserializer.apply(method.getGenericParameterTypes(), data, md));
 				if (returnPublisherConverter.isPresent())
@@ -131,7 +144,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private static <S> boolean registerRequestChannel(S service, String route,
+	private <S> boolean registerRequestChannel(S service, String route,
 			TriFunction<Type[], ByteBuf, ByteBuf, Object[]> argumentDeserializer, Method method,
 			H<Object, ByteBuf> serviceBuilder) {
 		Optional<Type> requestChannelParameterType = MethodMapUtils.getRequestChannelParameterType(method);
@@ -140,7 +153,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 		PublisherConverter returnPublisherConverter = PublisherConverters.lookup(method.getReturnType()).get();
 		Type[] typeArguments = new Type[] { requestChannelParameterType.get() };
 		serviceBuilder.requestChannel(route, (first, publisher, md) -> {
-			return Flux.defer(() -> {
+			return asFlux(() -> {
 				Flux<Object[]> argArrayPublisher = Flux.from(publisher)
 						.map(bb -> argumentDeserializer.apply(typeArguments, bb, md));
 				Flux<Object> objPublisher = argArrayPublisher.map(arr -> arr[0]);
@@ -149,6 +162,22 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 			});
 		});
 		return true;
+	}
+
+	protected <X> Flux<X> asFlux(Supplier<Publisher<X>> supplier) {
+		Objects.requireNonNull(supplier);
+		Flux<X> result = Flux.defer(supplier);
+		if (this.subscribeOnScheduler != null)
+			result = result.subscribeOn(this.subscribeOnScheduler);
+		return result;
+	}
+
+	protected <X> Mono<X> asMono(Supplier<X> supplier) {
+		Objects.requireNonNull(supplier);
+		Mono<X> result = Mono.fromSupplier(supplier);
+		if (this.subscribeOnScheduler != null)
+			result = result.subscribeOn(this.subscribeOnScheduler);
+		return result;
 	}
 
 	private static <S> Object invoke(S serivce, Method method, Object[] arguments) {
