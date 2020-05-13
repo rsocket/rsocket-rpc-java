@@ -35,7 +35,7 @@ public class ServerTest {
 		boolean releaseOnParse = true;
 		Gson gson = new Gson();
 		requestHandler.register(classType, service, GsonMarshaller.create(gson), (types, bb, md) -> {
-			return GsonUnmarshaller.create(gson, types, true).apply(bb);
+			return GsonUnmarshaller.create(gson, types).apply(bb);
 		});
 		System.out.println("started");
 		while (true) {

@@ -17,21 +17,21 @@ import io.rsocket.ipc.Unmarshaller;
 
 public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 
-	public static <X> GsonUnmarshaller<X> create(Gson gson, TypeToken<X> typeToken, boolean releaseOnParse) {
-		return create(gson, typeToken == null ? null : typeToken.getType(), releaseOnParse);
+	public static <X> GsonUnmarshaller<X> create(Gson gson, TypeToken<X> typeToken) {
+		return create(gson, typeToken == null ? null : typeToken.getType());
 	}
 
-	public static <X> GsonUnmarshaller<X> create(Gson gson, Class<X> classType, boolean releaseOnParse) {
-		return create(gson, (Type) classType, releaseOnParse);
+	public static <X> GsonUnmarshaller<X> create(Gson gson, Class<X> classType) {
+		return create(gson, (Type) classType);
 	}
 
-	public static <X> GsonUnmarshaller<X> create(Gson gson, Type type, boolean releaseOnParse) {
+	public static <X> GsonUnmarshaller<X> create(Gson gson, Type type) {
 		Objects.requireNonNull(gson);
 		Objects.requireNonNull(type);
-		return new GsonUnmarshaller<>(bb -> parseUnchecked(gson, type, bb, releaseOnParse));
+		return new GsonUnmarshaller<>(bb -> parseUnchecked(gson, type, bb));
 	}
 
-	public static GsonUnmarshaller<Object[]> create(Gson gson, Type[] types, boolean releaseOnParse) {
+	public static GsonUnmarshaller<Object[]> create(Gson gson, Type[] types) {
 		Objects.requireNonNull(gson);
 		Objects.requireNonNull(types);
 		if (types.length == 0)
@@ -39,7 +39,7 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 		for (Type type : types)
 			Objects.requireNonNull(type);
 		Function<ByteBuf, Object[]> parser = bb -> {
-			JsonArray jarr = parseUnchecked(gson, JsonArray.class, bb, releaseOnParse);
+			JsonArray jarr = parseUnchecked(gson, JsonArray.class, bb);
 			Object[] result = new Object[jarr.size()];
 			for (int i = 0; i < jarr.size(); i++) {
 				Type type = types == null || types.length <= i ? null : types[i];
@@ -63,7 +63,7 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 		return parser.apply(byteBuf);
 	}
 
-	private static <Y> Y parseUnchecked(Gson gson, Type type, ByteBuf byteBuf, boolean releaseOnParse) {
+	private static <Y> Y parseUnchecked(Gson gson, Type type, ByteBuf byteBuf) {
 		Objects.requireNonNull(gson);
 		Objects.requireNonNull(byteBuf);
 		type = type != null ? type : Object.class;
@@ -74,8 +74,9 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 					? java.lang.RuntimeException.class.cast(e)
 					: new java.lang.RuntimeException(e);
 		} finally {
-			if (releaseOnParse && byteBuf.refCnt() > 0)
-				byteBuf.release();
+			// DO NOT RELEASE THE PAYLOAD, I BELIEVE THAT THIS BREAKDS RSOCKET RPC JAVA
+			// if (releaseOnParse && byteBuf.refCnt() > 0)
+			// byteBuf.release();
 		}
 	}
 

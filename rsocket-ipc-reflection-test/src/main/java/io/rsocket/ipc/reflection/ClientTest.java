@@ -29,7 +29,7 @@ public class ClientTest {
 		com.google.gson.Gson gson = new Gson();
 		RSocket rsocket = RSocketConnector.create().connect(TcpClientTransport.create("localhost", 7000)).block();
 		BiFunction<Type, ByteBuf, Object> deserializer = (t, bb) -> {
-			return GsonUnmarshaller.create(gson, t, false).apply(bb);
+			return GsonUnmarshaller.create(gson, t).apply(bb);
 		};
 		TestServiceChannel client = RSocketIPCClients.create(Mono.just(rsocket), TestServiceChannel.class,
 				new MetadataEncoderLFP(), v -> {
