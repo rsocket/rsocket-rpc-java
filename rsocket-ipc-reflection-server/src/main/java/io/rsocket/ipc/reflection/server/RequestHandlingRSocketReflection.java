@@ -97,11 +97,6 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 		this.withEndpoint(serviceBuilder.toIPCRSocket());
 	}
 
-	protected <X> Mono<X> toMono(Supplier<X> object) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private <S> void register(S service, String route,
 			TriFunction<Type[], ByteBuf, ByteBuf, Object[]> argumentDeserializer, Method method,
