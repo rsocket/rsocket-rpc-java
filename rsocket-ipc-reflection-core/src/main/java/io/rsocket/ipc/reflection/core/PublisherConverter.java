@@ -45,14 +45,14 @@ public interface PublisherConverter<X> {
 
 			@Override
 			protected Publisher<?> toPublisherInternal(Stream<?> input) {
-				return Flux.fromStream(input);
+				return Flux.fromStream(input).subscribeOn(Schedulers.elastic());
 			}
 
 			@Override
 			public Stream<?> fromPublisher(Publisher<?> publisher) {
 				if (publisher == null)
 					return Stream.empty();
-				return Flux.from(publisher).subscribeOn(Schedulers.elastic()).toStream();
+				return Flux.from(publisher).toStream();
 			}
 
 			@Override
@@ -78,7 +78,7 @@ public interface PublisherConverter<X> {
 			public Iterator<?> fromPublisher(Publisher<?> publisher) {
 				if (publisher == null)
 					return Collections.emptyIterator();
-				return Flux.from(publisher).subscribeOn(Schedulers.elastic()).toStream().iterator();
+				return Flux.from(publisher).toStream().iterator();
 			}
 
 			@Override
@@ -106,8 +106,7 @@ public interface PublisherConverter<X> {
 					return Collections.emptyList();
 				Flux<?> cachedFlux = Flux.from(publisher).cache();
 				Iterable<?> ible = () -> {
-					Iterator<Object> iter = (Iterator<Object>) cachedFlux.subscribeOn(Schedulers.elastic()).toStream()
-							.iterator();
+					Iterator<Object> iter = (Iterator<Object>) cachedFlux.toStream().iterator();
 					return iter;
 				};
 				return ible;
