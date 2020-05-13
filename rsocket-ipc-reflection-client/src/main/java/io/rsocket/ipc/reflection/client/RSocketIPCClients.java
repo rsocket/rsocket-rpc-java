@@ -133,13 +133,13 @@ public class RSocketIPCClients {
 				.orElse(Object.class);
 		Publisher<Object> resultPublisher;
 		if (Mono.class.isAssignableFrom(method.getReturnType()))
-			resultPublisher = Mono.from(responsePublisher).map(v -> {
-				Object deserialized = returnDeserializer.apply(typeArgument, v);
+			resultPublisher = Mono.from(responsePublisher).map(bb -> {
+				Object deserialized = returnDeserializer.apply(typeArgument, bb);
 				return deserialized;
 			});
 		else
-			resultPublisher = Flux.from(responsePublisher).map(v -> {
-				Object deserialized = returnDeserializer.apply(typeArgument, v);
+			resultPublisher = Flux.from(responsePublisher).map(bb -> {
+				Object deserialized = returnDeserializer.apply(typeArgument, bb);
 				return deserialized;
 			});
 		Object result = returnPublisherConverter.fromPublisher(resultPublisher);

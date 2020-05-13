@@ -20,18 +20,67 @@ import java.util.Spliterators.AbstractSpliterator;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCounted;
 import io.rsocket.metadata.WellKnownMimeType;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 
 public class IPCUtils {
 	public static final Charset CHARSET = StandardCharsets.UTF_8;
+
+	public static <X> X releaseOnError(Supplier<X> supplier, ReferenceCounted referenceCounted) {
+		return releaseOnError(supplier, referenceCounted, false);
+	}
+
+	public static <X> X releaseOnError(Supplier<X> supplier, ReferenceCounted referenceCounted,
+			boolean releaseOnZeroRefCnt) {
+		Objects.requireNonNull(referenceCounted);
+		return onError(supplier, () -> {
+			if (releaseOnZeroRefCnt || referenceCounted.refCnt() > 0)
+				referenceCounted.release();
+		});
+	}
+
+	public static <X> X onError(Supplier<X> supplier, Runnable callback) {
+		Objects.requireNonNull(supplier);
+		try {
+			return supplier.get();
+		} catch (Throwable t) {
+			callback.run();
+			throw java.lang.RuntimeException.class.isAssignableFrom(t.getClass())
+					? java.lang.RuntimeException.class.cast(t)
+					: new java.lang.RuntimeException(t);
+		}
+	}
+
+	public static <X> X releaseOnFinally(Supplier<X> supplier, ReferenceCounted referenceCounted) {
+		return releaseOnError(supplier, referenceCounted, false);
+	}
+
+	public static <X> X releaseOnFinally(Supplier<X> supplier, ReferenceCounted referenceCounted,
+			boolean releaseOnZeroRefCnt) {
+		Objects.requireNonNull(referenceCounted);
+		return onFinally(supplier, () -> {
+			if (releaseOnZeroRefCnt || referenceCounted.refCnt() > 0)
+				referenceCounted.release();
+		});
+	}
+
+	public static <X> X onFinally(Supplier<X> supplier, Runnable callback) {
+		Objects.requireNonNull(supplier);
+		try {
+			return supplier.get();
+		} finally {
+			callback.run();
+		}
+	}
 
 	public static <X> Stream<X> stream(Iterator<X> iterator) {
 		if (iterator == null)
@@ -208,4 +257,5 @@ public class IPCUtils {
 			return disposable;
 		}
 	}
+
 }

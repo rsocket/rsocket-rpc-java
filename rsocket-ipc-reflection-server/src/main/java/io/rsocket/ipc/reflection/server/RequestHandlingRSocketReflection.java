@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -28,6 +29,7 @@ import io.rsocket.ipc.marshallers.Bytes;
 import io.rsocket.ipc.reflection.core.MethodMapUtils;
 import io.rsocket.ipc.reflection.core.PublisherConverter;
 import io.rsocket.ipc.reflection.core.PublisherConverters;
+import io.rsocket.ipc.util.IPCUtils;
 import io.rsocket.ipc.util.TriFunction;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -86,13 +88,17 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 
 	private <S> void register(S service, String serviceName, Marshaller<Object> resultMarshaller,
 			TriFunction<Type[], ByteBuf, ByteBuf, Object[]> argumentDeserializer, Map<String, Method> methodMapping) {
+		// wrap the deserializer so that it counts down references
+		TriFunction<Type[], ByteBuf, ByteBuf, Object[]> releasingArgumentDeserializer = (types, data, md) -> {
+			return IPCUtils.releaseOnFinally(() -> argumentDeserializer.apply(types, data, md), data);
+		};
 		H<Object, ByteBuf> serviceBuilder = Server.service(serviceName).noMeterRegistry().noTracer()
 				.marshall(resultMarshaller).unmarshall(Bytes.byteBufUnmarshaller());
 		methodMapping.entrySet().forEach(ent -> {
 			String route = ent.getKey();
 			logger.log(Level.FINE,
 					String.format("registering request handler. serviceName:%s route:%s", serviceName, route));
-			register(service, route, argumentDeserializer, ent.getValue(), serviceBuilder);
+			register(service, route, releasingArgumentDeserializer, ent.getValue(), serviceBuilder);
 		});
 		this.withEndpoint(serviceBuilder.toIPCRSocket());
 	}
@@ -109,7 +115,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 				Mono<Mono<Void>> wrappedMono = asMono(() -> {
 					invoke(service, method, arguments);
 					return Mono.empty();
-				});
+				}, this.subscribeOnScheduler);
 				return wrappedMono.flatMap(v -> v);
 			});
 			return;
@@ -122,7 +128,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 				return asFlux(() -> {
 					Object result = invoke(service, method, arguments);
 					return returnPublisherConverter.get().toPublisher(result);
-				});
+				}, this.subscribeOnScheduler);
 			});
 			return;
 		}
@@ -133,7 +139,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 				if (returnPublisherConverter.isPresent())
 					return Mono.from(returnPublisherConverter.get().toPublisher(result));
 				return Mono.just(result);
-			});
+			}, this.subscribeOnScheduler);
 			return wrappedMono.flatMap(v -> v);
 		});
 	}
@@ -148,32 +154,39 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 		PublisherConverter returnPublisherConverter = PublisherConverters.lookup(method.getReturnType()).get();
 		Type[] typeArguments = new Type[] { requestChannelParameterType.get() };
 		serviceBuilder.requestChannel(route, (first, publisher, md) -> {
-			return asFlux(() -> {
+			md.retain();
+			Runnable mdRelease = () -> {
+				if (md.refCnt() > 0)
+					md.release();
+			};
+			return IPCUtils.onError(() -> {
 				Flux<Object[]> argArrayPublisher = Flux.from(publisher).map(bb -> {
 					Object[] argArray = argumentDeserializer.apply(typeArguments, bb, md);
 					return argArray;
 				});
 				Flux<Object> objPublisher = argArrayPublisher.map(arr -> arr[0]);
-				Object result = invoke(service, method, new Object[] { objPublisher });
-				return returnPublisherConverter.toPublisher(result);
-			});
+				return asFlux(() -> {
+					Object result = invoke(service, method, new Object[] { objPublisher });
+					return returnPublisherConverter.toPublisher(result);
+				}, this.subscribeOnScheduler).doOnTerminate(mdRelease);
+			}, mdRelease);
 		});
 		return true;
 	}
 
-	protected <X> Flux<X> asFlux(Supplier<Publisher<X>> supplier) {
-		Objects.requireNonNull(supplier);
-		Flux<X> result = Flux.defer(supplier);
-		if (this.subscribeOnScheduler != null)
-			result = result.subscribeOn(this.subscribeOnScheduler);
+	private static <X> Flux<X> asFlux(Supplier<Publisher<X>> supplier, Scheduler scheduler) {
+		Supplier<Publisher<X>> memoizedSupplier = memoized(supplier);
+		Flux<X> result = Flux.defer(memoizedSupplier);
+		if (scheduler != null)
+			result = result.subscribeOn(scheduler);
 		return result;
 	}
 
-	protected <X> Mono<X> asMono(Supplier<X> supplier) {
-		Objects.requireNonNull(supplier);
-		Mono<X> result = Mono.fromSupplier(supplier);
-		if (this.subscribeOnScheduler != null)
-			result = result.subscribeOn(this.subscribeOnScheduler);
+	private static <X> Mono<X> asMono(Supplier<X> supplier, Scheduler scheduler) {
+		Supplier<X> memoizedSupplier = memoized(supplier);
+		Mono<X> result = Mono.fromSupplier(memoizedSupplier);
+		if (scheduler != null)
+			result = result.subscribeOn(scheduler);
 		return result;
 	}
 
@@ -185,6 +198,19 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 					? java.lang.RuntimeException.class.cast(e)
 					: new java.lang.RuntimeException(e);
 		}
+	}
+
+	private static <X> Supplier<X> memoized(Supplier<X> supplier) {
+		Objects.requireNonNull(supplier);
+		AtomicReference<Optional<X>> ref = new AtomicReference<>();
+		return () -> {
+			if (ref.get() == null)
+				synchronized (ref) {
+					if (ref.get() == null)
+						ref.set(Optional.ofNullable(supplier.get()));
+				}
+			return ref.get().orElse(null);
+		};
 	}
 
 }
