@@ -3,16 +3,23 @@ package io.rsocket.ipc.reflection.client;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import org.reactivestreams.Publisher;
@@ -33,6 +40,10 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class RSocketIPCClients {
+	private static final Class<?> THIS_CLASS = new Object() {
+	}.getClass().getEnclosingClass();
+	private static final Logger logger = java.util.logging.Logger.getLogger(THIS_CLASS.getName());
+	protected static final Duration RSOCKET_SUPPLIER_WARN_DURATION = Duration.ofSeconds(10);
 
 	public static <X> X create(Mono<RSocket> rSocketMono, Class<X> serviceType, MetadataEncoder metadataEncoder,
 			Marshaller<Object[]> argumentMarshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer) {
@@ -57,6 +68,7 @@ public class RSocketIPCClients {
 		Objects.requireNonNull(returnDeserializer);
 		Map<String, Method> mappedMethods = MethodMapUtils.getMappedMethods(serviceType, false);
 		Map<Method, Optional<IPCInvoker>> ipcInvokerCache = new ConcurrentHashMap<>();
+		Supplier<RSocket> rSocketSupplier = asRSocketSupplier(rSocketMono);
 		return (X) proxyFactory(serviceType).create(new Class<?>[] {}, new Object[] {}, new MethodHandler() {
 
 			@Override
@@ -75,48 +87,89 @@ public class RSocketIPCClients {
 				if (!ipcInvokerOp.isPresent())
 					throw new NoSuchMethodException(String.format(
 							"could not map method in service. serviceType:%s method:%s", serviceType, thisMethod));
-				return ipcInvokerOp.get().invoke(rSocketMono, args);
+				return ipcInvokerOp.get().invoke(rSocketSupplier.get(), args);
 			}
 
 		});
+	}
+
+	private static Supplier<RSocket> asRSocketSupplier(Mono<RSocket> rSocketMono) {
+		AtomicReference<RSocket> rSocketRef = new AtomicReference<>();
+		CountDownLatch rSocketLatch = new CountDownLatch(1);
+		return new Supplier<RSocket>() {
+
+			@Override
+			public RSocket get() {
+				if (rSocketRef.get() == null)
+					synchronized (rSocketRef) {
+						if (rSocketRef.get() == null) {
+							rSocketMono.subscribe(rs -> {
+								rSocketRef.set(rs);
+								if (rSocketLatch.getCount() > 0)
+									rSocketLatch.countDown();
+							});
+							rSocketLatchAwait();
+						}
+					}
+				return rSocketRef.get();
+			}
+
+			private void rSocketLatchAwait() {
+				Date startAt = new Date();
+				boolean success = false;
+				while (!success) {
+					try {
+						success = rSocketLatch.await(RSOCKET_SUPPLIER_WARN_DURATION.toMillis(), TimeUnit.MILLISECONDS);
+					} catch (InterruptedException e) {
+						throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
+								? java.lang.RuntimeException.class.cast(e)
+								: new java.lang.RuntimeException(e);
+					}
+					if (!success) {
+						Duration elapsed = Duration.ofMillis(new Date().getTime() - startAt.getTime());
+						logger.warning(String.format("awaiting rsocket. elapsed:%s", elapsed.toMillis()));
+					}
+				}
+			}
+		};
 	}
 
 	@SuppressWarnings("unchecked")
 	private static <X> IPCInvoker createIPCInvoker(Class<X> serviceType, String route, MetadataEncoder metadataEncoder,
 			Marshaller<Object[]> argumentMarshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer,
 			Method method) {
-		Function<Mono<RSocket>, Client<Object[], ByteBuf>> clientSupplier = rSocketMono -> {
-			Client<Object[], ByteBuf> client = Client.service(serviceType.getName()).rsocket(rSocketMono.block())
+		Function<RSocket, Client<Object[], ByteBuf>> clientSupplier = rSocket -> {
+			Client<Object[], ByteBuf> client = Client.service(serviceType.getName()).rsocket(rSocket)
 					.customMetadataEncoder(metadataEncoder).noMeterRegistry().noTracer().marshall(argumentMarshaller)
 					.unmarshall(Bytes.byteBufUnmarshaller());
 			return client;
 		};
 		Optional<PublisherConverter<?>> returnPublisherConverterOp = PublisherConverters.lookup(method.getReturnType());
 		if (MethodMapUtils.getRequestChannelParameterType(method).isPresent()) {
-			return (rSocketMono, args) -> {
+			return (rSocket, args) -> {
 				Publisher<Object> objPublisher = (Publisher<Object>) args[0];
 				Flux<Object[]> argArrayPublisher = Flux.from(objPublisher).map(v -> new Object[] { v });
-				Flux<ByteBuf> responsePublisher = clientSupplier.apply(rSocketMono).requestChannel(route)
+				Flux<ByteBuf> responsePublisher = clientSupplier.apply(rSocket).requestChannel(route)
 						.apply(argArrayPublisher);
 				return returnFromResponsePublisher(method, returnDeserializer, returnPublisherConverterOp.get(),
 						responsePublisher);
 			};
 		}
 		if (MethodMapUtils.isFireAndForget(method))
-			return (rSocketMono, args) -> {
-				Mono<Void> result = clientSupplier.apply(rSocketMono).fireAndForget(route).apply(args);
+			return (rSocket, args) -> {
+				Mono<Void> result = clientSupplier.apply(rSocket).fireAndForget(route).apply(args);
 				if (Mono.class.isAssignableFrom(method.getReturnType()))
 					return result;
 				return null;
 			};
 		if (returnPublisherConverterOp.isPresent() && !Mono.class.isAssignableFrom(method.getReturnType()))
-			return (rSocketMono, args) -> {
-				Flux<ByteBuf> responsePublisher = clientSupplier.apply(rSocketMono).requestStream(route).apply(args);
+			return (rSocket, args) -> {
+				Flux<ByteBuf> responsePublisher = clientSupplier.apply(rSocket).requestStream(route).apply(args);
 				return returnFromResponsePublisher(method, returnDeserializer, returnPublisherConverterOp.get(),
 						responsePublisher);
 			};
-		return (rSocketMono, args) -> {
-			Mono<ByteBuf> responsePublisher = clientSupplier.apply(rSocketMono).requestResponse(route).apply(args);
+		return (rSocket, args) -> {
+			Mono<ByteBuf> responsePublisher = clientSupplier.apply(rSocket).requestResponse(route).apply(args);
 			if (returnPublisherConverterOp.isPresent())
 				return returnFromResponsePublisher(method, returnDeserializer, returnPublisherConverterOp.get(),
 						responsePublisher);
