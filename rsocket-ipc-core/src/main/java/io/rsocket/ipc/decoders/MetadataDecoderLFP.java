@@ -43,7 +43,7 @@ public class MetadataDecoderLFP implements MetadataDecoder {
 
 	@Override
 	public Metadata decode(ByteBuf metadataByteBuf) throws Exception {
-		MetadataReader metadataReader = new MetadataReader(metadataByteBuf, true);
+		MetadataReader metadataReader = new MetadataReader(metadataByteBuf, false);
 		interceptors.forEach(v -> v.accept(metadataReader));
 		String route = getRoute(metadataReader);
 		SpanContext spanContext = readTracingSpanContext(metadataReader);
