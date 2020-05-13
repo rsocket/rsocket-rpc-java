@@ -105,11 +105,12 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 			return;
 		if (MethodMapUtils.isFireAndForget(method)) {
 			serviceBuilder.fireAndForget(route, (data, md) -> {
-				Mono<Mono<Void>> mono = asMono(() -> {
-					invoke(service, method, argumentDeserializer.apply(method.getGenericParameterTypes(), data, md));
+				Object[] arguments = argumentDeserializer.apply(method.getGenericParameterTypes(), data, md);
+				Mono<Mono<Void>> wrappedMono = asMono(() -> {
+					invoke(service, method, arguments);
 					return Mono.empty();
 				});
-				return mono.flatMap(v -> v);
+				return wrappedMono.flatMap(v -> v);
 			});
 			return;
 		}
@@ -117,24 +118,23 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 				.map(v -> v);
 		if (returnPublisherConverter.isPresent() && !Mono.class.isAssignableFrom(method.getReturnType())) {
 			serviceBuilder.requestStream(route, (data, md) -> {
+				Object[] arguments = argumentDeserializer.apply(method.getGenericParameterTypes(), data, md);
 				return asFlux(() -> {
-					Object result = invoke(service, method,
-							argumentDeserializer.apply(method.getGenericParameterTypes(), data, md));
+					Object result = invoke(service, method, arguments);
 					return returnPublisherConverter.get().toPublisher(result);
 				});
 			});
 			return;
 		}
 		serviceBuilder.requestResponse(route, (data, md) -> {
-			Mono<Mono<Object>> wrapped = asMono(() -> {
-				Object result = invoke(service, method,
-						argumentDeserializer.apply(method.getGenericParameterTypes(), data, md));
+			Object[] arguments = argumentDeserializer.apply(method.getGenericParameterTypes(), data, md);
+			Mono<Mono<Object>> wrappedMono = asMono(() -> {
+				Object result = invoke(service, method, arguments);
 				if (returnPublisherConverter.isPresent())
 					return Mono.from(returnPublisherConverter.get().toPublisher(result));
 				return Mono.just(result);
 			});
-			Mono<Object> result = wrapped.flatMap(v -> v);
-			return result;
+			return wrappedMono.flatMap(v -> v);
 		});
 	}
 
@@ -149,8 +149,10 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 		Type[] typeArguments = new Type[] { requestChannelParameterType.get() };
 		serviceBuilder.requestChannel(route, (first, publisher, md) -> {
 			return asFlux(() -> {
-				Flux<Object[]> argArrayPublisher = Flux.from(publisher)
-						.map(bb -> argumentDeserializer.apply(typeArguments, bb, md));
+				Flux<Object[]> argArrayPublisher = Flux.from(publisher).map(bb -> {
+					Object[] argArray = argumentDeserializer.apply(typeArguments, bb, md);
+					return argArray;
+				});
 				Flux<Object> objPublisher = argArrayPublisher.map(arr -> arr[0]);
 				Object result = invoke(service, method, new Object[] { objPublisher });
 				return returnPublisherConverter.toPublisher(result);
