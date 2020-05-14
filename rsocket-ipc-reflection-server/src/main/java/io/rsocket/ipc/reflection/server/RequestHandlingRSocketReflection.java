@@ -115,6 +115,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 		Type[] typeArguments = new Type[] { requestChannelParameterType.get() };
 		IPCRSocket ipcrSocket = serviceBuilder.unmarshall(createUnmarshaller(typeArguments, argumentUnmarshaller))
 				.requestChannel(route, (first, publisher, md) -> {
+					Flux<Object> argFlux = Flux.from(publisher).map(args -> args[0]);
 					md.retain();
 					Runnable mdRelease = () -> {
 						if (md.refCnt() > 0)
@@ -122,7 +123,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 					};
 					return IPCUtils.onError(() -> {
 						return asFlux(() -> {
-							Object result = invoke(service, method, new Object[] { publisher });
+							Object result = invoke(service, method, new Object[] { argFlux });
 							return returnPublisherConverter.toPublisher(result);
 						}, this.subscribeOnScheduler).doOnTerminate(mdRelease);
 					}, mdRelease);
