@@ -22,8 +22,10 @@ import org.reflections8.ReflectionUtils;
 import io.netty.buffer.ByteBuf;
 import io.rsocket.RSocket;
 import io.rsocket.ipc.Client;
+import io.rsocket.ipc.Client.U;
 import io.rsocket.ipc.Marshaller;
 import io.rsocket.ipc.MetadataEncoder;
+import io.rsocket.ipc.Unmarshaller;
 import io.rsocket.ipc.marshallers.Bytes;
 import io.rsocket.ipc.reflection.core.MethodMapUtils;
 import io.rsocket.ipc.reflection.core.PublisherConverter;
@@ -61,9 +63,6 @@ public class RSocketIPCClients {
 		Objects.requireNonNull(argumentMarshaller);
 		Objects.requireNonNull(returnDeserializer);
 		Map<String, Method> mappedMethods = MethodMapUtils.getMappedMethods(serviceType, false);
-		Client<Object[], ByteBuf> client = Client.service(serviceType.getName())
-				.rsocket(LazyRSocket.create(rSocketMono)).customMetadataEncoder(metadataEncoder).noMeterRegistry()
-				.noTracer().marshall(argumentMarshaller).unmarshall(Bytes.byteBufUnmarshaller());
 		Map<Method, Optional<IPCInvoker>> ipcInvokerCache = new ConcurrentHashMap<>();
 		return (X) proxyFactory(serviceType).create(new Class<?>[] {}, new Object[] {}, new MethodHandler() {
 
@@ -77,8 +76,12 @@ public class RSocketIPCClients {
 							.orElse(null);
 					if (entry == null)
 						return Optional.empty();
-					return Optional.of(createIPCInvoker(client, serviceType, entry.getKey(), metadataEncoder,
-							argumentMarshaller, returnDeserializer, thisMethod));
+					U<Object[]> clientBuilder = Client.service(serviceType.getName())
+							.rsocket(LazyRSocket.create(rSocketMono)).customMetadataEncoder(metadataEncoder)
+							.noMeterRegistry().noTracer().marshall(argumentMarshaller);
+					String route = entry.getKey();
+					return Optional.of(
+							createIPCInvoker(metadataEncoder, returnDeserializer, thisMethod, route, clientBuilder));
 				});
 				if (!ipcInvokerOp.isPresent())
 					throw new NoSuchMethodException(String.format(
@@ -90,40 +93,65 @@ public class RSocketIPCClients {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static <X> IPCInvoker createIPCInvoker(Client<Object[], ByteBuf> client, Class<X> serviceType, String route,
-			MetadataEncoder metadataEncoder, Marshaller<Object[]> argumentMarshaller,
-			BiFunction<Type, ByteBuf, Object> returnDeserializer, Method method) {
+	private static <X> IPCInvoker createIPCInvoker(MetadataEncoder metadataEncoder,
+			BiFunction<Type, ByteBuf, Object> returnDeserializer, Method method, String route,
+			U<Object[]> clientBuilder) {
 		Optional<PublisherConverter<?>> returnPublisherConverterOp = PublisherConverters.lookup(method.getReturnType());
+		Type unmarshallerType;
+		if (returnPublisherConverterOp.isPresent())
+			unmarshallerType = returnPublisherConverterOp.get().getPublisherTypeArgument(method.getGenericReturnType())
+					.orElse(Object.class);
+		else
+			unmarshallerType = method.getGenericReturnType();
 		if (MethodMapUtils.getRequestChannelParameterType(method).isPresent()) {
 			return (args) -> {
 				Publisher<Object> objPublisher = (Publisher<Object>) args[0];
 				Flux<Object[]> argArrayPublisher = Flux.from(objPublisher).map(v -> new Object[] { v });
-				Flux<ByteBuf> responsePublisher = client.requestChannel(route).apply(argArrayPublisher);
-				return returnFromResponsePublisher(method, returnDeserializer, returnPublisherConverterOp.get(),
-						responsePublisher);
+				Flux<Object> responsePublisher = clientBuilder
+						.unmarshall(createUnmarshaller(unmarshallerType, returnDeserializer)).requestChannel(route)
+						.apply(argArrayPublisher);
+				return returnMap(method, returnPublisherConverterOp, responsePublisher);
 			};
 		}
 		if (MethodMapUtils.isFireAndForget(method))
 			return (args) -> {
-				Mono<Void> result = client.fireAndForget(route).apply(args);
-				if (Mono.class.isAssignableFrom(method.getReturnType()))
-					return result;
-				return null;
+				Mono<Void> result = clientBuilder.unmarshall(Bytes.byteBufUnmarshaller()).fireAndForget(route)
+						.apply(args);
+				return returnMap(method, returnPublisherConverterOp, result);
 			};
 		if (returnPublisherConverterOp.isPresent() && !Mono.class.isAssignableFrom(method.getReturnType()))
 			return (args) -> {
-				Flux<ByteBuf> responsePublisher = client.requestStream(route).apply(args);
-				return returnFromResponsePublisher(method, returnDeserializer, returnPublisherConverterOp.get(),
-						responsePublisher);
+				Flux<Object> responsePublisher = clientBuilder
+						.unmarshall(createUnmarshaller(unmarshallerType, returnDeserializer)).requestStream(route)
+						.apply(args);
+				return returnMap(method, returnPublisherConverterOp, responsePublisher);
 			};
 		return (args) -> {
-			Mono<ByteBuf> responsePublisher = client.requestResponse(route).apply(args);
-			if (returnPublisherConverterOp.isPresent())
-				return returnFromResponsePublisher(method, returnDeserializer, returnPublisherConverterOp.get(),
-						responsePublisher);
-			ByteBuf bb = responsePublisher.block();
-			return returnDeserializer.apply(method.getReturnType(), bb);
+			Mono<Object> responsePublisher = clientBuilder
+					.unmarshall(createUnmarshaller(unmarshallerType, returnDeserializer)).requestResponse(route)
+					.apply(args);
+			return returnMap(method, returnPublisherConverterOp, responsePublisher);
 		};
+	}
+
+	private static Object returnMap(Method method, Optional<PublisherConverter<?>> returnPublisherConverterOp,
+			Publisher<?> responsePublisher) {
+		if (!returnPublisherConverterOp.isPresent())
+			return returnMapPublisher(method, responsePublisher);
+		Object result = returnPublisherConverterOp.get().fromPublisher(responsePublisher);
+		if (result instanceof Publisher)
+			return returnMapPublisher(method, (Publisher<?>) result);
+		return result;
+	}
+
+	private static Object returnMapPublisher(Method method, Publisher<?> responsePublisher) {
+		if (Flux.class.isAssignableFrom(method.getReturnType()))
+			return Flux.from(responsePublisher);
+		if (Mono.class.isAssignableFrom(method.getReturnType()))
+			return Mono.from(responsePublisher);
+		if (responsePublisher instanceof Mono)
+			return ((Mono<?>) responsePublisher).block();
+		return responsePublisher;
 	}
 
 	private static Object returnFromResponsePublisher(Method method,
@@ -144,6 +172,11 @@ public class RSocketIPCClients {
 			});
 		Object result = returnPublisherConverter.fromPublisher(resultPublisher);
 		return result;
+	}
+
+	private static Unmarshaller<Object> createUnmarshaller(Type unmarshallerType,
+			BiFunction<Type, ByteBuf, Object> returnDeserializer) {
+		return bb -> returnDeserializer.apply(unmarshallerType, bb);
 	}
 
 	@SuppressWarnings("unchecked")

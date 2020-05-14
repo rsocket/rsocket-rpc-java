@@ -6,11 +6,12 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,18 +20,17 @@ import org.reactivestreams.Publisher;
 
 import io.netty.buffer.ByteBuf;
 import io.opentracing.Tracer;
+import io.rsocket.ipc.IPCRSocket;
 import io.rsocket.ipc.Marshaller;
 import io.rsocket.ipc.MetadataDecoder;
 import io.rsocket.ipc.RequestHandlingRSocket;
 import io.rsocket.ipc.Server;
-import io.rsocket.ipc.Server.H;
+import io.rsocket.ipc.Server.U;
 import io.rsocket.ipc.Unmarshaller;
-import io.rsocket.ipc.marshallers.Bytes;
 import io.rsocket.ipc.reflection.core.MethodMapUtils;
 import io.rsocket.ipc.reflection.core.PublisherConverter;
 import io.rsocket.ipc.reflection.core.PublisherConverters;
 import io.rsocket.ipc.util.IPCUtils;
-import io.rsocket.ipc.util.TriFunction;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -58,22 +58,16 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 
 	public <S> void register(Class<S> serviceType, S service, Marshaller<Object> resultMarshaller,
 			Unmarshaller<Object[]> unmarshaller) {
-		register(serviceType, service, resultMarshaller, (paramTypes, bb, md) -> unmarshaller.apply(bb));
+		register(serviceType, service, resultMarshaller, (paramTypes, bb) -> unmarshaller.apply(bb));
 	}
 
 	public <S> void register(Class<S> serviceType, S service, Marshaller<Object> resultMarshaller,
-			Function<Type[], Unmarshaller<Object[]>> argumentDeserializer) {
-		register(serviceType, service, resultMarshaller,
-				(paramTypes, bb, md) -> argumentDeserializer.apply(paramTypes).apply(bb));
-	}
-
-	public <S> void register(Class<S> serviceType, S service, Marshaller<Object> resultMarshaller,
-			TriFunction<Type[], ByteBuf, ByteBuf, Object[]> argumentDeserializer) {
+			BiFunction<Type[], ByteBuf, Object[]> argumentUnmarshaller) {
 		Objects.requireNonNull(serviceType);
 		Objects.requireNonNull(service);
 		Objects.requireNonNull(resultMarshaller);
-		Objects.requireNonNull(argumentDeserializer);
-		Map<String, Method> methods = MethodMapUtils.getMappedMethods(serviceType, true);
+		Objects.requireNonNull(argumentUnmarshaller);
+		Map<String, Method> methodMapping = MethodMapUtils.getMappedMethods(serviceType, true);
 		Set<String> serviceNameTracker = new HashSet<>();
 		for (boolean lowercase : Arrays.asList(false, true)) {
 			for (boolean simpleName : Arrays.asList(false, true)) {
@@ -81,97 +75,128 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 				serviceName = lowercase ? serviceName.toLowerCase() : serviceName;
 				if (!serviceNameTracker.add(serviceName))
 					continue;
-				register(service, serviceName, resultMarshaller, argumentDeserializer, methods);
+				for (Entry<String, Method> ent : methodMapping.entrySet()) {
+					String route = ent.getKey();
+					Method method = ent.getValue();
+					logger.log(Level.INFO,
+							String.format("registering request handler. route:%s.%s", serviceName, route));
+					register(service, argumentUnmarshaller, createServiceBuilder(serviceName, resultMarshaller), route,
+							method);
+				}
 			}
 		}
 	}
 
-	private <S> void register(S service, String serviceName, Marshaller<Object> resultMarshaller,
-			TriFunction<Type[], ByteBuf, ByteBuf, Object[]> argumentDeserializer, Map<String, Method> methodMapping) {
-		// wrap the deserializer so that it counts down references
-		TriFunction<Type[], ByteBuf, ByteBuf, Object[]> releasingArgumentDeserializer = (types, data, md) -> {
-			return IPCUtils.releaseOnFinally(() -> argumentDeserializer.apply(types, data, md), data);
-		};
-		H<Object, ByteBuf> serviceBuilder = Server.service(serviceName).noMeterRegistry().noTracer()
-				.marshall(resultMarshaller).unmarshall(Bytes.byteBufUnmarshaller());
-		methodMapping.entrySet().forEach(ent -> {
-			String route = ent.getKey();
-			logger.log(Level.FINE,
-					String.format("registering request handler. serviceName:%s route:%s", serviceName, route));
-			register(service, route, releasingArgumentDeserializer, ent.getValue(), serviceBuilder);
-		});
-		this.withEndpoint(serviceBuilder.toIPCRSocket());
-	}
-
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private <S> void register(S service, String route,
-			TriFunction<Type[], ByteBuf, ByteBuf, Object[]> argumentDeserializer, Method method,
-			H<Object, ByteBuf> serviceBuilder) {
-		if (registerRequestChannel(service, route, argumentDeserializer, method, serviceBuilder))
+	private <S> void register(S service, BiFunction<Type[], ByteBuf, Object[]> argumentUnmarshaller,
+			U<Object> serviceBuilder, String route, Method method) {
+		if (registerRequestChannel(service, argumentUnmarshaller, serviceBuilder, route, method))
 			return;
-		if (MethodMapUtils.isFireAndForget(method)) {
-			serviceBuilder.fireAndForget(route, (data, md) -> {
-				Object[] arguments = argumentDeserializer.apply(method.getGenericParameterTypes(), data, md);
-				Mono<Mono<Void>> wrappedMono = asMono(() -> {
-					invoke(service, method, arguments);
-					return Mono.empty();
-				}, this.subscribeOnScheduler);
-				return wrappedMono.flatMap(v -> v);
-			});
+		if (registerFireAndForget(service, argumentUnmarshaller, serviceBuilder, route, method))
 			return;
-		}
-		Optional<PublisherConverter> returnPublisherConverter = PublisherConverters.lookup(method.getReturnType())
-				.map(v -> v);
-		if (returnPublisherConverter.isPresent() && !Mono.class.isAssignableFrom(method.getReturnType())) {
-			serviceBuilder.requestStream(route, (data, md) -> {
-				Object[] arguments = argumentDeserializer.apply(method.getGenericParameterTypes(), data, md);
-				return asFlux(() -> {
-					Object result = invoke(service, method, arguments);
-					return returnPublisherConverter.get().toPublisher(result);
-				}, this.subscribeOnScheduler);
-			});
+		Optional<PublisherConverter<?>> returnPublisherConverter = PublisherConverters.lookup(method.getReturnType());
+		if (registerRequestStream(service, argumentUnmarshaller, serviceBuilder, route, method,
+				returnPublisherConverter))
 			return;
-		}
-		serviceBuilder.requestResponse(route, (data, md) -> {
-			Object[] arguments = argumentDeserializer.apply(method.getGenericParameterTypes(), data, md);
-			Mono<Mono<Object>> wrappedMono = asMono(() -> {
-				Object result = invoke(service, method, arguments);
-				if (returnPublisherConverter.isPresent())
-					return Mono.from(returnPublisherConverter.get().toPublisher(result));
-				return Mono.just(result);
-			}, this.subscribeOnScheduler);
-			return wrappedMono.flatMap(v -> v);
-		});
+		if (registerRequestResponse(service, argumentUnmarshaller, serviceBuilder, route, method,
+				returnPublisherConverter))
+			return;
+		String errorMessage = String.format("unable to map method. serviceInstanceType:%s methodRoute:%s method:%s",
+				service.getClass().getName(), route, method);
+		throw new IllegalArgumentException(errorMessage);
 	}
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private <S> boolean registerRequestChannel(S service, String route,
-			TriFunction<Type[], ByteBuf, ByteBuf, Object[]> argumentDeserializer, Method method,
-			H<Object, ByteBuf> serviceBuilder) {
+	private <S> boolean registerRequestChannel(S service, BiFunction<Type[], ByteBuf, Object[]> argumentUnmarshaller,
+			U<Object> serviceBuilder, String route, Method method) {
 		Optional<Type> requestChannelParameterType = MethodMapUtils.getRequestChannelParameterType(method);
 		if (!requestChannelParameterType.isPresent())
 			return false;
 		PublisherConverter returnPublisherConverter = PublisherConverters.lookup(method.getReturnType()).get();
 		Type[] typeArguments = new Type[] { requestChannelParameterType.get() };
-		serviceBuilder.requestChannel(route, (first, publisher, md) -> {
-			md.retain();
-			Runnable mdRelease = () -> {
-				if (md.refCnt() > 0)
-					md.release();
-			};
-			return IPCUtils.onError(() -> {
-				Flux<Object[]> argArrayPublisher = Flux.from(publisher).map(bb -> {
-					Object[] argArray = argumentDeserializer.apply(typeArguments, bb, md);
-					return argArray;
-				});
-				Flux<Object> objPublisher = argArrayPublisher.map(arr -> arr[0]);
-				return asFlux(() -> {
-					Object result = invoke(service, method, new Object[] { objPublisher });
-					return returnPublisherConverter.toPublisher(result);
-				}, this.subscribeOnScheduler).doOnTerminate(mdRelease);
-			}, mdRelease);
-		});
+		IPCRSocket ipcrSocket = serviceBuilder.unmarshall(createUnmarshaller(typeArguments, argumentUnmarshaller))
+				.requestChannel(route, (first, publisher, md) -> {
+					md.retain();
+					Runnable mdRelease = () -> {
+						if (md.refCnt() > 0)
+							md.release();
+					};
+					return IPCUtils.onError(() -> {
+						return asFlux(() -> {
+							Object result = invoke(service, method, new Object[] { publisher });
+							return returnPublisherConverter.toPublisher(result);
+						}, this.subscribeOnScheduler).doOnTerminate(mdRelease);
+					}, mdRelease);
+				}).toIPCRSocket();
+		this.withEndpoint(ipcrSocket);
 		return true;
+	}
+
+	private <S> boolean registerFireAndForget(S service, BiFunction<Type[], ByteBuf, Object[]> argumentUnmarshaller,
+			U<Object> serviceBuilder, String route, Method method) {
+		if (!MethodMapUtils.isFireAndForget(method))
+			return false;
+		IPCRSocket ipcrSocket = serviceBuilder
+				.unmarshall(createUnmarshaller(method.getGenericParameterTypes(), argumentUnmarshaller))
+				.fireAndForget(route, (data, md) -> {
+					Mono<Mono<Void>> wrappedMono = asMono(() -> {
+						invoke(service, method, data);
+						return Mono.empty();
+					}, this.subscribeOnScheduler);
+					return wrappedMono.flatMap(v -> v);
+				}).toIPCRSocket();
+		this.withEndpoint(ipcrSocket);
+		return true;
+
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private <S> boolean registerRequestStream(S service, BiFunction<Type[], ByteBuf, Object[]> argumentUnmarshaller,
+			U<Object> serviceBuilder, String route, Method method,
+			Optional<PublisherConverter<?>> returnPublisherConverter) {
+		if (!returnPublisherConverter.isPresent())
+			return false;
+		if (Mono.class.isAssignableFrom(method.getReturnType()))
+			return false;
+		PublisherConverter publisherConverter = returnPublisherConverter.get();
+		IPCRSocket ipcrSocket = serviceBuilder
+				.unmarshall(createUnmarshaller(method.getGenericParameterTypes(), argumentUnmarshaller))
+				.requestStream(route, (data, md) -> {
+					return asFlux(() -> {
+						Object result = invoke(service, method, data);
+						return publisherConverter.toPublisher(result);
+					}, this.subscribeOnScheduler);
+				}).toIPCRSocket();
+		this.withEndpoint(ipcrSocket);
+		return true;
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private <S> boolean registerRequestResponse(S service, BiFunction<Type[], ByteBuf, Object[]> argumentUnmarshaller,
+			U<Object> serviceBuilder, String route, Method method,
+			Optional<PublisherConverter<?>> returnPublisherConverter) {
+		PublisherConverter publisherConverter = returnPublisherConverter.orElse(null);
+		IPCRSocket ipcrSocket = serviceBuilder
+				.unmarshall(createUnmarshaller(method.getGenericParameterTypes(), argumentUnmarshaller))
+				.requestResponse(route, (data, md) -> {
+					Mono<Mono<Object>> wrappedMono = asMono(() -> {
+						Object result = invoke(service, method, data);
+						if (publisherConverter != null)
+							return Mono.from(publisherConverter.toPublisher(result));
+						return Mono.just(result);
+					}, this.subscribeOnScheduler);
+					return wrappedMono.flatMap(v -> v);
+				}).toIPCRSocket();
+		this.withEndpoint(ipcrSocket);
+		return true;
+	}
+
+	private static <X> U<X> createServiceBuilder(String serviceName, Marshaller<X> resultMarshaller) {
+		return Server.service(serviceName).noMeterRegistry().noTracer().marshall(resultMarshaller);
+	}
+
+	private static Unmarshaller<Object[]> createUnmarshaller(Type[] typeArguments,
+			BiFunction<Type[], ByteBuf, Object[]> argumentDeserializer) {
+		return bb -> argumentDeserializer.apply(typeArguments, bb);
 	}
 
 	private static <X> Flux<X> asFlux(Supplier<Publisher<X>> supplier, Scheduler scheduler) {

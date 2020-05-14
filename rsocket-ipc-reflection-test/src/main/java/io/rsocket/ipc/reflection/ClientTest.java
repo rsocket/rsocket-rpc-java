@@ -10,7 +10,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import io.netty.buffer.ByteBuf;
 import io.rsocket.RSocket;
