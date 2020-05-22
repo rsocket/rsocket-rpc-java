@@ -30,7 +30,7 @@ public class ClientTest {
 		BiFunction<Type, ByteBuf, Object> deserializer = (t, bb) -> {
 			return GsonUnmarshaller.create(gson, t).apply(bb);
 		};
-		TestServiceChannel client = RSocketIPCClients.create(Mono.just(rsocket), TestServiceChannel.class,
+		TestServiceChannel client = RSocketIPCClients.create(() -> rsocket, TestServiceChannel.class,
 				new MetadataEncoderLFP(), v -> {
 					ByteBuf bb = GsonMarshaller.create(gson).apply(v);
 					System.out.println(bb.toString(StandardCharsets.UTF_8));
