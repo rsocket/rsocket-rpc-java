@@ -13,13 +13,14 @@ import io.rsocket.RSocket;
 import io.rsocket.ResponderRSocket;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 public abstract class LazyRSocket implements ResponderRSocket {
 
 	public static LazyRSocket create(Mono<RSocket> rsocketMono) {
 		Objects.requireNonNull(rsocketMono);
 		AtomicReference<CompletableFuture<RSocket>> futureRef = new AtomicReference<>(new CompletableFuture<>());
-		rsocketMono.subscribe(v -> {
+		rsocketMono.subscribeOn(Schedulers.elastic()).subscribe(v -> {
 			if (!futureRef.get().isDone()) {
 				synchronized (futureRef) {
 					if (!futureRef.get().isDone()) {
