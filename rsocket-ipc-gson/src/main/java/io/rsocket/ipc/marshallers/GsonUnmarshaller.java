@@ -34,8 +34,6 @@ public class GsonUnmarshaller<X> implements Unmarshaller<X> {
 	public static GsonUnmarshaller<Object[]> create(Gson gson, Type[] types) {
 		Objects.requireNonNull(gson);
 		Objects.requireNonNull(types);
-		if (types.length == 0)
-			throw new IllegalArgumentException("types are required");
 		for (Type type : types)
 			Objects.requireNonNull(type);
 		Function<ByteBuf, Object[]> parser = bb -> {
