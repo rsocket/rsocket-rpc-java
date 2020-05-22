@@ -1,6 +1,9 @@
 package io.rsocket.ipc.reflection.client;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import org.reactivestreams.Publisher;
@@ -15,7 +18,28 @@ public abstract class LazyRSocket implements ResponderRSocket {
 
 	public static LazyRSocket create(Mono<RSocket> rsocketMono) {
 		Objects.requireNonNull(rsocketMono);
-		return create(() -> rsocketMono.block());
+		AtomicReference<CompletableFuture<RSocket>> futureRef = new AtomicReference<>(new CompletableFuture<>());
+		rsocketMono.subscribe(v -> {
+			if (!futureRef.get().isDone()) {
+				synchronized (futureRef) {
+					if (!futureRef.get().isDone()) {
+						futureRef.get().complete(v);
+						return;
+					}
+				}
+			}
+			futureRef.set(CompletableFuture.completedFuture(v));
+		});
+		Supplier<RSocket> rSocketSupplier = () -> {
+			try {
+				return futureRef.get().get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
+						? java.lang.RuntimeException.class.cast(e)
+						: new java.lang.RuntimeException(e);
+			}
+		};
+		return create(rSocketSupplier);
 	}
 
 	public static LazyRSocket create(Supplier<RSocket> rsocketSupplier) {
