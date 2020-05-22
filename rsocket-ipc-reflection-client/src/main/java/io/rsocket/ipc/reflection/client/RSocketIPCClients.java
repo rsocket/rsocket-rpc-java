@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
@@ -41,10 +42,11 @@ public class RSocketIPCClients {
 	private static final Logger logger = java.util.logging.Logger.getLogger(THIS_CLASS.getName());
 	protected static final Duration RSOCKET_SUPPLIER_WARN_DURATION = Duration.ofSeconds(10);
 
-	public static <X> X create(Mono<RSocket> rSocketMono, Class<X> serviceType, MetadataEncoder metadataEncoder,
+	public static <X> X create(Supplier<RSocket> rSocketSupplier, Class<X> serviceType, MetadataEncoder metadataEncoder,
 			Marshaller<Object[]> argumentMarshaller, BiFunction<Type, ByteBuf, Object> returnDeserializer) {
 		try {
-			return createInternal(rSocketMono, serviceType, metadataEncoder, argumentMarshaller, returnDeserializer);
+			return createInternal(rSocketSupplier, serviceType, metadataEncoder, argumentMarshaller,
+					returnDeserializer);
 		} catch (NoSuchMethodException | IllegalArgumentException | InstantiationException | IllegalAccessException
 				| InvocationTargetException e) {
 			throw java.lang.RuntimeException.class.isAssignableFrom(e.getClass())
@@ -54,11 +56,11 @@ public class RSocketIPCClients {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected static <X> X createInternal(Mono<RSocket> rSocketMono, Class<X> serviceType,
+	protected static <X> X createInternal(Supplier<RSocket> rSocketSupplier, Class<X> serviceType,
 			MetadataEncoder metadataEncoder, Marshaller<Object[]> argumentMarshaller,
 			BiFunction<Type, ByteBuf, Object> returnDeserializer) throws NoSuchMethodException,
 			IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException {
-		Objects.requireNonNull(rSocketMono);
+		Objects.requireNonNull(rSocketSupplier);
 		Objects.requireNonNull(serviceType);
 		Objects.requireNonNull(argumentMarshaller);
 		Objects.requireNonNull(returnDeserializer);
@@ -77,7 +79,7 @@ public class RSocketIPCClients {
 					if (entry == null)
 						return Optional.empty();
 					U<Object[]> clientBuilder = Client.service(serviceType.getName())
-							.rsocket(LazyRSocket.create(rSocketMono)).customMetadataEncoder(metadataEncoder)
+							.rsocket(LazyRSocket.create(rSocketSupplier)).customMetadataEncoder(metadataEncoder)
 							.noMeterRegistry().noTracer().marshall(argumentMarshaller);
 					String route = entry.getKey();
 					return Optional.of(
