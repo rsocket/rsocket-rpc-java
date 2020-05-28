@@ -39,7 +39,7 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 	private static final Class<?> THIS_CLASS = new Object() {
 	}.getClass().getEnclosingClass();
 	private static final Logger logger = java.util.logging.Logger.getLogger(THIS_CLASS.getName());
-	private final Scheduler subscribeOnScheduler;
+	private Scheduler subscribeOnScheduler;
 
 	public RequestHandlingRSocketReflection(Scheduler subscribeOnScheduler) {
 		super();
@@ -189,6 +189,14 @@ public class RequestHandlingRSocketReflection extends RequestHandlingRSocket {
 				}).toIPCRSocket();
 		this.withEndpoint(ipcrSocket);
 		return true;
+	}
+
+	public Scheduler getSubscribeOnScheduler() {
+		return subscribeOnScheduler;
+	}
+
+	public void setSubscribeOnScheduler(Scheduler subscribeOnScheduler) {
+		this.subscribeOnScheduler = subscribeOnScheduler;
 	}
 
 	private static <X> U<X> createServiceBuilder(String serviceName, Marshaller<X> resultMarshaller) {
