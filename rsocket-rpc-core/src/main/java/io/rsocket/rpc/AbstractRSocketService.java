@@ -1,10 +1,10 @@
 package io.rsocket.rpc;
 
-import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
+import io.rsocket.RSocket;
 import reactor.core.publisher.Flux;
 
-public abstract class AbstractRSocketService extends AbstractRSocket implements RSocketRpcService {
+public abstract class AbstractRSocketService implements RSocket, RSocketRpcService {
   @Override
   public String getService() {
     return getClass().getName();
