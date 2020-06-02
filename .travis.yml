@@ -22,20 +22,19 @@ jobs:
     compiler: clang
     before_install:
     - sudo rm -rf /Library/Java/JavaVirtualMachines/*
-    - curl -OLJ https://api.adoptopenjdk.net/v1/openjdk8/releases/x64_mac/latest/binary
-    - tar -xzf OpenJDK8_x64_Mac_jdk*.tar.gz
+    - curl -OLJ https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u252-b09.1/OpenJDK8U-jdk_x64_mac_hotspot_8u252b09.tar.gz
+    - tar -xzf OpenJDK8U-jdk_x64_mac_hotspot*.tar.gz
     - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk
-    - sudo mkdir /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents
-    - sudo mv jdk8* /Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
+    - sudo mv jdk8*/* /Library/Java/JavaVirtualMachines/openjdk-8.jdk/
     - ls /Library/Java/JavaVirtualMachines/openjdk-8.jdk
     - export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-8.jdk/Contents/Home
+    - java -version
     - brew uninstall --ignore-dependencies protobuf
     - pushd $HOME
     - ls
     - ls ./protobuf-3.6.1
     - bash ./build/rsocket/rsocket-rpc-java/ci/install_protobuf.sh
     - popd
-    - java -version
     - protoc --version
     script: "./ci/travis.sh"
   - stage: deploy
