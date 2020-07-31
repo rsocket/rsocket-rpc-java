@@ -3,7 +3,7 @@ description = 'RSocket IPC Reflection Mapping Support'
 
 dependencies {
 	api project (':rsocket-ipc-core')
-	compile 'net.oneandone.reflections8:reflections:0.9.12'
+	compile 'org.reflections:reflections:0.9.12'
 	
     testImplementation 'io.opentracing.brave:brave-opentracing'
     testImplementation 'junit:junit'
