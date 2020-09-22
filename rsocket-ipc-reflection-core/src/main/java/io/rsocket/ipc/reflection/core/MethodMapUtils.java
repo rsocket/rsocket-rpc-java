@@ -20,7 +20,7 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
-import org.reflections8.ReflectionUtils;
+import org.reflections.ReflectionUtils;
 
 import io.rsocket.ipc.util.IPCUtils;
 import javassist.Modifier;

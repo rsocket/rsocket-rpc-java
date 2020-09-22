@@ -18,7 +18,7 @@ import java.util.logging.Logger;
 import java.util.stream.Stream;
 
 import org.reactivestreams.Publisher;
-import org.reflections8.ReflectionUtils;
+import org.reflections.ReflectionUtils;
 
 import io.netty.buffer.ByteBuf;
 import io.rsocket.RSocket;
