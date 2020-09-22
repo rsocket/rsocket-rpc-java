@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.reflections.ReflectionUtils;
+import org.reflections8.ReflectionUtils;
 
 public class PublisherConverters {
 
