@@ -28,8 +28,6 @@ public class ServerTest {
 			requestHandler = new RequestHandlingRSocketReflection(Schedulers.elastic(), new MetadataDecoderLFP());
 			SocketAcceptor socketAcceptor = (setup, client) -> Mono.just(requestHandler);
 			RSocketServer.create(socketAcceptor).interceptors(ir -> {
-			}).errorConsumer(t -> {
-				java.util.logging.Logger.getLogger("[server]").log(Level.SEVERE, "uncaught error", t);
 			}).bind(TcpServerTransport.create("localhost", 7000)).block();
 		}
 		boolean releaseOnParse = true;
