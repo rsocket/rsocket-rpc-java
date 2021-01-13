@@ -19,7 +19,7 @@ import static io.rsocket.ipc.frames.Metadata.canDecode;
 import static io.rsocket.ipc.frames.Metadata.getMetadata;
 import static io.rsocket.ipc.frames.Metadata.getMethod;
 import static io.rsocket.ipc.frames.Metadata.getService;
-import static io.rsocket.metadata.CompositeMetadataFlyweight.hasEntry;
+import static io.rsocket.metadata.CompositeMetadataCodec.hasEntry;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

@@ -29,7 +29,6 @@ class JavaRSocketRpcGenerator : public google::protobuf::compiler::CodeGenerator
                         google::protobuf::compiler::GeneratorContext* context,
                         string* error) const {
     return reactor(file, parameter, context, error) && blocking(file, parameter, context, error);
-   // return reactor(file, parameter, context, error);
   }
 
   virtual bool reactor(const google::protobuf::FileDescriptor* file,

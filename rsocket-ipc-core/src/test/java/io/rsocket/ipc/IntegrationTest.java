@@ -17,7 +17,8 @@ package io.rsocket.ipc;
 
 import io.netty.buffer.ByteBufAllocator;
 import io.rsocket.RSocket;
-import io.rsocket.RSocketFactory;
+import io.rsocket.core.RSocketConnector;
+import io.rsocket.core.RSocketServer;
 import io.rsocket.ipc.decoders.CompositeMetadataDecoder;
 import io.rsocket.ipc.encoders.DefaultMetadataEncoder;
 import io.rsocket.ipc.marshallers.Primitives;
@@ -37,17 +38,13 @@ public class IntegrationTest {
     RequestHandlingRSocket requestHandler =
         new RequestHandlingRSocket(new CompositeMetadataDecoder());
 
-    RSocketFactory.receive()
+    RSocketServer.create()
         .acceptor((setup, sendingSocket) -> Mono.just(requestHandler))
-        .transport(LocalServerTransport.create("test-local-server"))
-        .start()
+        .bind(LocalServerTransport.create("test-local-server"))
         .block();
 
     RSocket rsocket =
-        RSocketFactory.connect()
-            .transport(LocalClientTransport.create("test-local-server"))
-            .start()
-            .block();
+        RSocketConnector.connectWith(LocalClientTransport.create("test-local-server")).block();
 
     AtomicBoolean ff = new AtomicBoolean();
 

@@ -1,12 +1,11 @@
 package io.rsocket.rpc.rsocket;
 
-import io.rsocket.ResponderRSocket;
 import io.rsocket.ipc.SelfRegistrable;
 import io.rsocket.rpc.RSocketRpcService;
 
 @Deprecated
-public class RequestHandlingRSocket extends io.rsocket.ipc.RequestHandlingRSocket
-    implements ResponderRSocket {
+public class RequestHandlingRSocket extends io.rsocket.ipc.RequestHandlingRSocket {
+
   public RequestHandlingRSocket(RSocketRpcService... services) {
     super();
     for (RSocketRpcService rsocketService : services) {

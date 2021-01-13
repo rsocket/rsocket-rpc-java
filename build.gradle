@@ -1,13 +1,13 @@
 plugins {
     id 'com.google.osdetector' version '1.4.0'
-    id 'com.github.sherter.google-java-format' version '0.8' apply false
+    id 'com.github.sherter.google-java-format' version '0.9' apply false
     id 'com.github.johnrengelman.shadow' version '5.2.0' apply false
-    id 'com.jfrog.artifactory' version '4.12.0' apply false
-    id 'com.jfrog.bintray' version '1.8.4' apply false
+    id 'com.jfrog.artifactory' version '4.18.3' apply false
+    id 'com.jfrog.bintray' version '1.8.5' apply false
     id 'me.champeau.gradle.jmh' version '0.5.0' apply false
     id 'io.morethan.jmhreport' version '0.9.0' apply false
-    id 'com.google.protobuf' version '0.8.10' apply false
-    id 'io.spring.dependency-management' version '1.0.8.RELEASE' apply false
+    id 'com.google.protobuf' version '0.8.14' apply false
+    id 'io.spring.dependency-management' version '1.0.10.RELEASE' apply false
 }
 
 apply from: 'artifactory.gradle'

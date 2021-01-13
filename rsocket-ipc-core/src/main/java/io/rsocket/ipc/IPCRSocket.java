@@ -16,16 +16,11 @@
 package io.rsocket.ipc;
 
 import io.rsocket.Payload;
-import io.rsocket.ResponderRSocket;
-import org.reactivestreams.Publisher;
+import io.rsocket.RSocket;
 import reactor.core.publisher.Flux;
 
-public interface IPCRSocket extends ResponderRSocket, SelfRegistrable {
+public interface IPCRSocket extends RSocket, SelfRegistrable {
   String getService();
 
   Flux<Payload> requestChannel(Payload payload, Flux<Payload> publisher);
-
-  default Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
-    return requestChannel(payload, Flux.from(payloads));
-  }
 }

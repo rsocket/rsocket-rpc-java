@@ -16,9 +16,8 @@
 package io.rsocket.ipc;
 
 import io.opentracing.Tracer;
-import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
-import io.rsocket.ResponderRSocket;
+import io.rsocket.RSocket;
 import io.rsocket.ipc.decoders.CompositeMetadataDecoder;
 import io.rsocket.ipc.exception.RouteNotFound;
 import io.rsocket.ipc.util.IPCChannelFunction;
@@ -27,7 +26,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class RoutingServerRSocket extends AbstractRSocket implements ResponderRSocket {
+public class RoutingServerRSocket implements RSocket {
 
   final Router router;
   final MetadataDecoder decoder;
@@ -48,7 +47,7 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Mono<Void> fireAndForget(Payload payload) {
     try {
-      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload.sliceMetadata());
+      final MetadataDecoder.Metadata decodedMetadata = this.decoder.decode(payload.sliceMetadata());
 
       final String route = decodedMetadata.route();
       final IPCFunction<Mono<Void>> monoIPCFunction = this.router.routeFireAndForget(route);
@@ -71,7 +70,7 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Mono<Payload> requestResponse(Payload payload) {
     try {
-      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload.sliceMetadata());
+      final MetadataDecoder.Metadata decodedMetadata = this.decoder.decode(payload.sliceMetadata());
 
       final String route = decodedMetadata.route();
       final IPCFunction<Mono<Payload>> monoIPCFunction = this.router.routeRequestResponse(route);
@@ -94,7 +93,7 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
   @Override
   public Flux<Payload> requestStream(Payload payload) {
     try {
-      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload.sliceMetadata());
+      final MetadataDecoder.Metadata decodedMetadata = this.decoder.decode(payload.sliceMetadata());
 
       final String route = decodedMetadata.route();
       final IPCFunction<Flux<Payload>> ffContext = this.router.routeRequestStream(route);
@@ -129,14 +128,9 @@ public class RoutingServerRSocket extends AbstractRSocket implements ResponderRS
             });
   }
 
-  @Override
-  public Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
-    return doRequestChannel(payload, Flux.from(payloads));
-  }
-
   private Flux<Payload> doRequestChannel(Payload payload, Flux<Payload> payloadFlux) {
     try {
-      final MetadataDecoder.Metadata decodedMetadata = decoder.decode(payload.sliceMetadata());
+      final MetadataDecoder.Metadata decodedMetadata = this.decoder.decode(payload.sliceMetadata());
 
       final String route = decodedMetadata.route();
       final IPCChannelFunction ffContext = this.router.routeRequestChannel(route);
