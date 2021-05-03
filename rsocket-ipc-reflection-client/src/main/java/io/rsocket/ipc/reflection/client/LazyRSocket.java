@@ -7,11 +7,10 @@ import org.reactivestreams.Publisher;
 
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
-import io.rsocket.ResponderRSocket;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public abstract class LazyRSocket implements ResponderRSocket {
+public abstract class LazyRSocket implements RSocket {
 
 	public static LazyRSocket create(Supplier<RSocket> rsocketSupplier) {
 		Objects.requireNonNull(rsocketSupplier);
@@ -44,14 +43,6 @@ public abstract class LazyRSocket implements ResponderRSocket {
 	@Override
 	public Flux<Payload> requestChannel(Publisher<Payload> payloads) {
 		return getRSocket().requestChannel(payloads);
-	}
-
-	@Override
-	public Flux<Payload> requestChannel(Payload payload, Publisher<Payload> payloads) {
-		RSocket rSocket = getRSocket();
-		if (rSocket instanceof ResponderRSocket)
-			return ((ResponderRSocket) rSocket).requestChannel(payload, payloads);
-		return rSocket.requestChannel(payloads);
 	}
 
 	@Override

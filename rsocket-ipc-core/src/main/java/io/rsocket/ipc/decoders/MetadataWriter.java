@@ -20,7 +20,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.rsocket.ipc.mimetype.MimeType;
 import io.rsocket.ipc.util.IPCUtils;
-import io.rsocket.metadata.CompositeMetadataFlyweight;
+import io.rsocket.metadata.CompositeMetadataCodec;
 import io.rsocket.metadata.WellKnownMimeType;
 
 public class MetadataWriter {
@@ -120,10 +120,10 @@ public class MetadataWriter {
 		Optional<WellKnownMimeType> wellKnownMimeTypeOp = mimeType.getWellKnownMimeType();
 		stream.forEach(bb -> {
 			if (wellKnownMimeTypeOp.isPresent())
-				CompositeMetadataFlyweight.encodeAndAddMetadata(getCompositeByteBuf(), allocator,
+				CompositeMetadataCodec.encodeAndAddMetadata(getCompositeByteBuf(), allocator,
 						wellKnownMimeTypeOp.get(), bb);
 			else
-				CompositeMetadataFlyweight.encodeAndAddMetadata(getCompositeByteBuf(), allocator, mimeType.getString(),
+				CompositeMetadataCodec.encodeAndAddMetadata(getCompositeByteBuf(), allocator, mimeType.getString(),
 						bb);
 		});
 
