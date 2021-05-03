@@ -17,9 +17,8 @@ import reactor.core.publisher.Operators;
 import reactor.util.annotation.Nullable;
 
 /**
- * An iterable that consumes a Publisher in a blocking fashion.
- *
- * <p>
+ * An iterable that consumes a Publisher in a blocking fashion. <br>
+ * <br>
  *
  * <p>It also implements methods to stream the contents via Stream that also supports cancellation.
  *

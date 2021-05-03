@@ -12,7 +12,8 @@ import graphql.schema.idl.TypeDefinitionRegistry;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufInputStream;
 import io.rsocket.RSocket;
-import io.rsocket.RSocketFactory;
+import io.rsocket.core.RSocketConnector;
+import io.rsocket.core.RSocketServer;
 import io.rsocket.ipc.IPCRSocket;
 import io.rsocket.ipc.RequestHandlingRSocket;
 import io.rsocket.ipc.Unmarshaller;
@@ -36,19 +37,12 @@ public class GraphQLIntegrationTest {
   public void testQuery() throws Exception {
     RequestHandlingRSocket requestHandler = new RequestHandlingRSocket();
 
-    RSocketFactory.receive()
-        .errorConsumer(Throwable::printStackTrace)
+    RSocketServer.create()
         .acceptor((setup, sendingSocket) -> Mono.just(requestHandler))
-        .transport(LocalServerTransport.create("testQuery"))
-        .start()
-        .block();
+        .bindNow(LocalServerTransport.create("testQuery"));
 
     RSocket rsocket =
-        RSocketFactory.connect()
-            .errorConsumer(Throwable::printStackTrace)
-            .transport(LocalClientTransport.create("testQuery"))
-            .start()
-            .block();
+        RSocketConnector.connectWith(LocalClientTransport.create("testQuery")).block();
 
     String query =
         "{\n"

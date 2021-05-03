@@ -1102,10 +1102,10 @@ static void PrintServer(const ServiceDescriptor* service,
     p->Indent();
     p->Print(
         *vars,
-        "$CodedInputStream$ is = $CodedInputStream$.newInstance(data.getData());\n"
+        "$CodedInputStream$ is = $CodedInputStream$.newInstance(payload.getData());\n"
         "$input_type$ message = $input_type$.parseFrom(is);\n"
         "$ByteBuf$ metadata = decoded.metadata().retain();\n"
-        "return $Flux$.defer(() -> { try { return $Flux$.fromIterable(service.$lower_method_name$(message, metadata).map(serializer).transform($lower_method_name$); } finally { metadata.release(); }).subscribeOn(scheduler);\n");
+        "return $Flux$.defer(() -> { try { return $Flux$.fromIterable(service.$lower_method_name$(message, metadata)).map(serializer).transform($lower_method_name$); } finally { metadata.release(); } }).subscribeOn(scheduler);\n");
     p->Outdent();
     p->Print("}\n");
     p->Print("\n");
@@ -1441,8 +1441,8 @@ void GenerateClient(const ServiceDescriptor* service,
   vars["ByteBuffer"] = "java.nio.ByteBuffer";
   vars["CodedInputStream"] = "com.google.protobuf.CodedInputStream";
   vars["CodedOutputStream"] = "com.google.protobuf.CodedOutputStream";
-  vars["RSocketRpcMetadata"] = "io.rsocket.rpc.frames.Metadata";
-  vars["RSocketRpcMetrics"] = "io.rsocket.rpc.metrics.Metrics";
+  vars["RSocketRpcMetadata"] = "io.rsocket.ipc.frames.Metadata";
+  vars["RSocketRpcMetrics"] = "io.rsocket.ipc.metrics.Metrics";
   vars["MeterRegistry"] = "io.micrometer.core.instrument.MeterRegistry";
   vars["MessageLite"] = "com.google.protobuf.MessageLite";
   vars["Parser"] = "com.google.protobuf.Parser";
@@ -1451,7 +1451,7 @@ void GenerateClient(const ServiceDescriptor* service,
   vars["PackageName"] = ServiceJavaPackage(service->file());
   vars["Queues"] = "reactor.util.concurrent.Queues";
   vars["RSocketRpcGeneratedMethod"] = "io.rsocket.rpc.annotations.internal.GeneratedMethod";
-  vars["Tag"] = "io.rsocket.rpc.tracing.Tag";
+  vars["Tag"] = "io.rsocket.ipc.tracing.Tag";
   vars["Map"] = "java.util.Map";
   vars["HashMap"] = "java.util.HashMap";
   vars["Supplier"] = "java.util.function.Supplier";
@@ -1500,8 +1500,8 @@ void GenerateServer(const ServiceDescriptor* service,
   vars["ByteBufPayload"] = "io.rsocket.util.ByteBufPayload";
   vars["SwitchTransformFlux"] = "io.rsocket.internal.SwitchTransformFlux";
   vars["AbstractRSocketService"] = "io.rsocket.rpc.AbstractRSocketService";
-  vars["RSocketRpcMetadata"] = "io.rsocket.rpc.frames.Metadata";
-  vars["RSocketRpcMetrics"] = "io.rsocket.rpc.metrics.Metrics";
+  vars["RSocketRpcMetadata"] = "io.rsocket.ipc.frames.Metadata";
+  vars["RSocketRpcMetrics"] = "io.rsocket.ipc.metrics.Metrics";
   vars["MeterRegistry"] = "io.micrometer.core.instrument.MeterRegistry";
   vars["ByteBuf"] = "io.netty.buffer.ByteBuf";
   vars["ByteBuffer"] = "java.nio.ByteBuffer";
@@ -1517,8 +1517,7 @@ void GenerateServer(const ServiceDescriptor* service,
   vars["Optional"] = "java.util.Optional";
   vars["Inject"] = "javax.inject.Inject";
   vars["Named"] = "javax.inject.Named";
-  vars["RSocketRpcResourceType"] = "io.rsocket.rpc.annotations.internal.ResourceType";
-  vars["Tag"] = "io.rsocket.rpc.tracing.Tag";
+  vars["Tag"] = "io.rsocket.ipc.tracing.Tag";
   vars["SpanContext"] = "io.opentracing.SpanContext";
   vars["Tracer"] = "io.opentracing.Tracer";
   vars["Map"] = "java.util.Map";

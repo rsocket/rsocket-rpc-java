@@ -16,10 +16,9 @@
 package io.rsocket.ipc;
 
 import io.opentracing.Tracer;
-import io.rsocket.ResponderRSocket;
 import io.rsocket.ipc.routing.SimpleRouter;
 
-public class RequestHandlingRSocket extends RoutingServerRSocket implements ResponderRSocket {
+public class RequestHandlingRSocket extends RoutingServerRSocket {
 
   public RequestHandlingRSocket() {
     super(new SimpleRouter());
