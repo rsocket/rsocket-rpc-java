@@ -1,6 +1,6 @@
 package io.rsocket.ipc.util;
 
-import java.io.UnsupportedEncodingException;
+import com.lfp.joe.core.lots.AbstractLot; import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.Spliterators.AbstractSpliterator;
+import java.util.Spliterators.AbstractLot;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -57,7 +57,7 @@ public class IPCUtils {
 		if (streams == null)
 			return Stream.empty();
 		Iterator<? extends Stream<X>> iter = streams.iterator();
-		Spliterator<X> spliterator = new AbstractSpliterator<X>(Long.MAX_VALUE, Spliterator.ORDERED) {
+		Spliterator<X> spliterator = new AbstractLot<X>(Long.MAX_VALUE, Spliterator.ORDERED) {
 
 			private Iterator<X> currentIterator;
 
