@@ -1,6 +1,6 @@
 package io.rsocket.ipc.util;
 
-import com.lfp.joe.core.lots.AbstractLot; import java.io.UnsupportedEncodingException;
+import com.lfp.joe.core.lot.AbstractLot; import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
